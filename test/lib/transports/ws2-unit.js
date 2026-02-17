@@ -223,6 +223,7 @@ describe('WSv2 unit', () => {
     it('_sendCalc: stringifes payload & passes it to the ws client', (done) => {
       ws = createTestWSv2Instance()
 
+      ws._isOpen = true
       ws._ws = {}
       ws._ws.send = (data) => {
         assert.strictEqual(data, '[]')

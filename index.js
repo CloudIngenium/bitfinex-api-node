@@ -80,8 +80,8 @@ class BFX {
     const key = `${version}|${JSON.stringify(extraOpts)}`
 
     if (!this._transportCache.rest[key]) {
-      Object.assign(extraOpts, this._restArgs)
-      const payload = this._getTransportPayload(extraOpts)
+      const mergedOpts = { ...this._restArgs, ...extraOpts }
+      const payload = this._getTransportPayload(mergedOpts)
 
       this._transportCache.rest[key] = version === 2
         ? new RESTv2(payload)
@@ -106,8 +106,8 @@ class BFX {
     const key = `${version}|${JSON.stringify(extraOpts)}`
 
     if (!this._transportCache.ws[key]) {
-      Object.assign(extraOpts, this._wsArgs)
-      const payload = this._getTransportPayload(extraOpts)
+      const mergedOpts = { ...this._wsArgs, ...extraOpts }
+      const payload = this._getTransportPayload(mergedOpts)
 
       this._transportCache.ws[key] = version === 2
         ? new WSv2(payload)

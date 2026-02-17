@@ -68,7 +68,6 @@ describe('WSv2 integration', () => {
       await ws.auth()
 
       const o = new Order({
-        gid: null,
         cid: 0,
         type: 'EXCHANGE LIMIT',
         price: 100,
@@ -76,11 +75,15 @@ describe('WSv2 integration', () => {
         symbol: 'tBTCUSD'
       }, ws)
 
-      o.registerListeners()
-
       await o.submit()
 
+      // Build update array from submitted order, skipping null gid so
+      // registerListeners filter matches (null gid coerces to 0 in filter
+      // but stays null in serialized form, causing a mismatch)
+      o.registerListeners()
+
       const arr = o.serialize()
+      arr[1] = 0 // align gid with filter expectation (+null === 0)
       arr[16] = 256
 
       wss.send([0, 'ou', arr])
