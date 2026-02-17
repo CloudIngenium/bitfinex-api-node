@@ -1570,6 +1570,7 @@ describe('WSv2 unit', () => {
     it('_flushOrderOps: merges the buffer into a multi-op packet & sends', (done) => {
       ws = createTestWSv2Instance()
       ws._isAuthenticated = true
+      ws._isOpen = true
 
       ws._orderOpBuffer = [
         [0, 'oc', null, []],
@@ -1590,6 +1591,7 @@ describe('WSv2 unit', () => {
     it('_flushOrderOps: splits up buffers greater than 15 ops in size', async () => {
       ws = createTestWSv2Instance()
       ws._isAuthenticated = true
+      ws._isOpen = true
 
       let seenCount = 0
       let seenAll = false
@@ -2316,6 +2318,605 @@ describe('WSv2 unit', () => {
       }
 
       assert.strictEqual(ws.getDataChannelId('ticker', { symbol: 'fUSD' }), 'test')
+    })
+  })
+
+  describe('_getEventPromiseWithTimeout', () => {
+    it('resolves when event callback fires', async () => {
+      ws = createTestWSv2Instance()
+      const p = ws._getEventPromiseWithTimeout('test-key', 5000)
+      ws._eventCallbacks.trigger('test-key', null, 'result')
+      const res = await p
+      assert.strictEqual(res, 'result')
+    })
+
+    it('rejects on timeout', async () => {
+      ws = createTestWSv2Instance()
+      const p = ws._getEventPromiseWithTimeout('never-fires', 50)
+      try {
+        await p
+        assert.fail('should have timed out')
+      } catch (err) {
+        assert.ok(err.message.includes('timeout'))
+        assert.ok(err.message.includes('never-fires'))
+      }
+    })
+
+    it('rejects with error from callback', async () => {
+      ws = createTestWSv2Instance()
+      const p = ws._getEventPromiseWithTimeout('err-key', 5000)
+      ws._eventCallbacks.trigger('err-key', new Error('order failed'))
+      try {
+        await p
+        assert.fail('should have rejected')
+      } catch (err) {
+        assert.strictEqual(err.message, 'order failed')
+      }
+    })
+
+    it('ignores callback after timeout', async () => {
+      ws = createTestWSv2Instance()
+      const p = ws._getEventPromiseWithTimeout('late-key', 20)
+      try {
+        await p
+        assert.fail('should have timed out')
+      } catch (err) {
+        assert.ok(err.message.includes('timeout'))
+      }
+      // Late trigger should not throw
+      ws._eventCallbacks.trigger('late-key', null, 'late-result')
+    })
+  })
+
+  describe('send', () => {
+    it('returns false when not open', () => {
+      ws = createTestWSv2Instance()
+      let errorEmitted = false
+      ws.on('error', () => { errorEmitted = true })
+      const result = ws.send({ test: true })
+      assert.strictEqual(result, false)
+      assert.ok(errorEmitted)
+    })
+
+    it('returns false when closing', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._isClosing = true
+      ws._ws = {}
+      let errorEmitted = false
+      ws.on('error', () => { errorEmitted = true })
+      const result = ws.send({ test: true })
+      assert.strictEqual(result, false)
+      assert.ok(errorEmitted)
+    })
+
+    it('returns true on successful send', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+      const result = ws.send({ test: true })
+      assert.strictEqual(result, true)
+    })
+
+    it('returns false and emits error on ws.send() exception', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = {
+        send: () => { throw new Error('connection reset') }
+      }
+      let errorEmitted = false
+      ws.on('error', (err) => {
+        assert.strictEqual(err.message, 'connection reset')
+        errorEmitted = true
+      })
+      const result = ws.send({ test: true })
+      assert.strictEqual(result, false)
+      assert.ok(errorEmitted)
+    })
+  })
+
+  describe('_sendCalc', () => {
+    it('does nothing when ws is null', () => {
+      ws = createTestWSv2Instance()
+      ws._ws = null
+      ws._isOpen = false
+      // Should not throw
+      ws._sendCalc([0, 'calc'])
+    })
+
+    it('emits error on exception', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = {
+        send: () => { throw new Error('send failed') }
+      }
+      let errorEmitted = false
+      ws.on('error', (err) => {
+        assert.ok(err.message.includes('send failed'))
+        errorEmitted = true
+      })
+      ws._sendCalc([0, 'calc'])
+      assert.ok(errorEmitted)
+    })
+  })
+
+  describe('close cleanup', () => {
+    it('clears order op buffer on close', async () => {
+      wss = new MockWSv2Server()
+      ws = createTestWSv2Instance()
+      await ws.open()
+
+      ws._orderOpBuffer = [['dummy']]
+      ws._orderOpTimeout = setTimeout(() => {}, 99999)
+
+      await ws.close()
+
+      assert.deepStrictEqual(ws._orderOpBuffer, [])
+      assert.strictEqual(ws._orderOpTimeout, null)
+    })
+
+    it('clears packet watchdog timeout on close', async () => {
+      wss = new MockWSv2Server()
+      ws = createTestWSv2Instance({ packetWDDelay: 5000 })
+      await ws.open()
+
+      // Watchdog should be set since packetWDDelay is configured
+      assert.notStrictEqual(ws._packetWDTimeout, null)
+
+      await ws.close()
+
+      assert.strictEqual(ws._packetWDTimeout, null)
+    })
+  })
+
+  describe('_flushOrderOps', () => {
+    it('does nothing when closing', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._isClosing = true
+      ws._orderOpBuffer = [['dummy']]
+
+      const result = ws._flushOrderOps()
+      assert.ok(result instanceof Promise)
+      assert.deepStrictEqual(ws._orderOpBuffer, [])
+    })
+
+    it('does nothing when not open', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = false
+      ws._orderOpBuffer = [['dummy']]
+
+      ws._flushOrderOps()
+      assert.deepStrictEqual(ws._orderOpBuffer, [])
+    })
+  })
+
+  describe('_onWSNotification', () => {
+    it('ignores malformed notifications with non-array data', () => {
+      ws = createTestWSv2Instance()
+      // Should not throw
+      ws._onWSNotification([0, 'on-req', null, null, 'not-an-array', 0, 'SUCCESS'])
+    })
+
+    it('ignores on-req with too few elements', () => {
+      ws = createTestWSv2Instance()
+      // arrN[4] has fewer than 3 elements for on-req
+      ws._onWSNotification([0, 'on-req', null, null, [1, 2], 0, 'SUCCESS'])
+    })
+
+    it('handles oc-req correctly', (done) => {
+      ws = createTestWSv2Instance()
+      ws._eventCallbacks.push('order-cancel-99', (err, data) => {
+        assert(!err)
+        assert.deepStrictEqual(data, [99])
+        done()
+      })
+      ws._onWSNotification([0, 'oc-req', null, null, [99], 0, 'SUCCESS'])
+    })
+
+    it('handles ou-req correctly', (done) => {
+      ws = createTestWSv2Instance()
+      ws._eventCallbacks.push('order-update-55', (err, data) => {
+        assert(!err)
+        assert.deepStrictEqual(data, [55])
+        done()
+      })
+      ws._onWSNotification([0, 'ou-req', null, null, [55], 0, 'SUCCESS'])
+    })
+  })
+
+  describe('onInfoMessage', () => {
+    it('returns an unsubscribe function', () => {
+      ws = createTestWSv2Instance()
+      let callCount = 0
+
+      const unsub = ws.onInfoMessage(20051, () => { callCount++ })
+      assert(_isFunction(unsub))
+
+      // Trigger info message
+      ws._handleEventMessage({ event: 'info', code: 20051 })
+      assert.strictEqual(callCount, 1)
+
+      // Unsubscribe
+      unsub()
+
+      // Should not fire again
+      ws._handleEventMessage({ event: 'info', code: 20051 })
+      assert.strictEqual(callCount, 1)
+    })
+
+    it('supports multiple listeners for same code', () => {
+      ws = createTestWSv2Instance()
+      let count1 = 0
+      let count2 = 0
+
+      ws.onInfoMessage(20060, () => { count1++ })
+      ws.onInfoMessage(20060, () => { count2++ })
+
+      ws._handleEventMessage({ event: 'info', code: 20060 })
+      assert.strictEqual(count1, 1)
+      assert.strictEqual(count2, 1)
+    })
+  })
+
+  describe('_notifyListenerGroup error handling', () => {
+    it('catches callback errors and continues to next listener', () => {
+      const wsInst = createTestWSv2Instance()
+      let secondCalled = false
+      let errorEmitted = false
+
+      wsInst.on('error', () => { errorEmitted = true })
+
+      const lg = {
+        test: [
+          {
+            cb: () => { throw new Error('callback failed') }
+          },
+          {
+            cb: () => { secondCalled = true }
+          }
+        ]
+      }
+
+      WSv2._notifyListenerGroup(lg, [0, 'test', []], false, wsInst)
+      assert.ok(secondCalled, 'second listener should still be called')
+      assert.ok(errorEmitted, 'error should have been emitted')
+    })
+  })
+
+  describe('_notifyCatchAllListeners error handling', () => {
+    it('catches callback errors and continues', () => {
+      let secondCalled = false
+
+      const lg = {
+        '': [
+          { cb: () => { throw new Error('catch-all fail') } },
+          { cb: () => { secondCalled = true } }
+        ]
+      }
+
+      WSv2._notifyCatchAllListeners(lg, 'data')
+      assert.ok(secondCalled)
+    })
+  })
+
+  describe('_prevChannelMap initialization', () => {
+    it('initializes _prevChannelMap as empty object', () => {
+      ws = createTestWSv2Instance()
+      assert.deepStrictEqual(ws._prevChannelMap, {})
+    })
+  })
+
+  describe('_onWSClose reconnection state', () => {
+    it('saves channel map before clearing on reconnect', () => {
+      ws = createTestWSv2Instance({ autoReconnect: true, reconnectDelay: 99999 })
+      ws._channelMap = {
+        42: { channel: 'ticker', symbol: 'tBTCUSD' }
+      }
+      ws._isOpen = true
+
+      ws._onWSClose()
+
+      // _prevChannelMap should have the old channels
+      assert.deepStrictEqual(ws._prevChannelMap, {
+        42: { channel: 'ticker', symbol: 'tBTCUSD' }
+      })
+      // _channelMap should be cleared
+      assert.deepStrictEqual(ws._channelMap, {})
+    })
+
+    it('does not save channel map on explicit close', () => {
+      ws = createTestWSv2Instance({ autoReconnect: true })
+      ws._channelMap = {
+        42: { channel: 'ticker', symbol: 'tBTCUSD' }
+      }
+      ws._isOpen = true
+      ws._isClosing = true
+
+      ws._onWSClose()
+
+      assert.deepStrictEqual(ws._prevChannelMap, {})
+      assert.deepStrictEqual(ws._channelMap, {})
+    })
+  })
+
+  describe('channel data queries', () => {
+    it('hasChannel: returns true for known channels', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = { 42: { channel: 'ticker' } }
+      assert.ok(ws.hasChannel(42))
+      assert.ok(!ws.hasChannel(99))
+    })
+
+    it('getDataChannelCount: counts data channels', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = {
+        0: { channel: 'auth' },
+        42: { channel: 'ticker' },
+        43: { channel: 'trades' }
+      }
+      assert.strictEqual(ws.getDataChannelCount(), 2)
+    })
+
+    it('hasSubscriptionRef: checks subscription refs', () => {
+      ws = createTestWSv2Instance()
+      ws._subscriptionRefs = {
+        'ticker:tBTCUSD': 1
+      }
+      assert.ok(ws.hasSubscriptionRef('ticker', 'tBTCUSD'))
+      assert.ok(!ws.hasSubscriptionRef('ticker', 'tETHUSD'))
+      assert.ok(!ws.hasSubscriptionRef('trades', 'tBTCUSD'))
+    })
+
+    it('getDataChannelId: returns channel id for matching filter', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = {
+        42: { chanId: 42, channel: 'ticker', symbol: 'tBTCUSD' },
+        43: { chanId: 43, channel: 'trades', symbol: 'tETHUSD' }
+      }
+      assert.strictEqual(ws.getDataChannelId('ticker', { symbol: 'tBTCUSD' }), '42')
+      assert.strictEqual(ws.getDataChannelId('trades', { symbol: 'tETHUSD' }), '43')
+      assert.strictEqual(ws.getDataChannelId('ticker', { symbol: 'tETHUSD' }), undefined)
+    })
+
+    it('getChannelData: returns channel map entry', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = {
+        42: { channel: 'ticker', symbol: 'tBTCUSD' }
+      }
+      const data = ws.getChannelData({ chanId: 42 })
+      assert.deepStrictEqual(data, { channel: 'ticker', symbol: 'tBTCUSD' })
+      assert.strictEqual(ws.getChannelData({ chanId: 99 }), null)
+    })
+  })
+
+  describe('subscription management', () => {
+    it('managedSubscribe: creates and increments subscription refs', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      ws.managedSubscribe('ticker', 'tBTCUSD', { symbol: 'tBTCUSD' })
+      assert.strictEqual(ws._subscriptionRefs['ticker:tBTCUSD'], 1)
+
+      ws.managedSubscribe('ticker', 'tBTCUSD', { symbol: 'tBTCUSD' })
+      assert.strictEqual(ws._subscriptionRefs['ticker:tBTCUSD'], 2)
+    })
+
+    it('managedUnsubscribe: decrements ref and unsubscribes at 0', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+      ws._channelMap = {
+        42: { chanId: 42, channel: 'ticker', symbol: 'tBTCUSD' }
+      }
+
+      ws.managedSubscribe('ticker', 'tBTCUSD', { symbol: 'tBTCUSD' })
+      ws.managedSubscribe('ticker', 'tBTCUSD', { symbol: 'tBTCUSD' })
+      assert.strictEqual(ws._subscriptionRefs['ticker:tBTCUSD'], 2)
+
+      ws.managedUnsubscribe('ticker', 'tBTCUSD')
+      assert.strictEqual(ws._subscriptionRefs['ticker:tBTCUSD'], 1)
+    })
+  })
+
+  describe('order operations', () => {
+    it('submitOrder: rejects when not authenticated', async () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+
+      try {
+        await ws.submitOrder({ type: 'LIMIT', symbol: 'tBTCUSD', amount: 1, price: 100 })
+        assert.fail('should reject')
+      } catch (err) {
+        assert.ok(err.message.includes('not authenticated'))
+      }
+    })
+
+    it('cancelOrder: rejects when not authenticated', async () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+
+      try {
+        await ws.cancelOrder(12345)
+        assert.fail('should reject')
+      } catch (err) {
+        assert.ok(err.message.includes('not authenticated'))
+      }
+    })
+
+    it('cancelOrder: parses id from array', async () => {
+      wss = new MockWSv2Server()
+      ws = createTestWSv2Instance()
+      await ws.open()
+      await ws.auth()
+
+      let sentPacket = null
+      ws._sendOrderPacket = (p) => { sentPacket = p }
+
+      // Don't await - just check the packet was formatted
+      ws.cancelOrder([42, null, null, 'tBTCUSD'])
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket[3].id, 42)
+    })
+
+    it('cancelOrder: parses id from object', async () => {
+      wss = new MockWSv2Server()
+      ws = createTestWSv2Instance()
+      await ws.open()
+      await ws.auth()
+
+      let sentPacket = null
+      ws._sendOrderPacket = (p) => { sentPacket = p }
+
+      ws.cancelOrder({ id: 99 })
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket[3].id, 99)
+    })
+
+    it('cancelOrders: throws when not authenticated', async () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+
+      try {
+        await ws.cancelOrders([1, 2, 3])
+        assert.fail('should reject')
+      } catch (err) {
+        assert.ok(err.message.includes('not authenticated'))
+      }
+    })
+
+    it('cancelOrders: calls cancelOrder for each id', async () => {
+      wss = new MockWSv2Server()
+      ws = createTestWSv2Instance()
+      await ws.open()
+      await ws.auth()
+
+      const cancelledIds = []
+      ws.cancelOrder = (id) => {
+        cancelledIds.push(id)
+        return Promise.resolve()
+      }
+
+      await ws.cancelOrders([1, 2, 3])
+      assert.deepStrictEqual(cancelledIds, [1, 2, 3])
+    })
+  })
+
+  describe('packet watchdog', () => {
+    it('_resetPacketWD: does nothing without delay configured', () => {
+      ws = createTestWSv2Instance()
+      ws._resetPacketWD()
+      assert.strictEqual(ws._packetWDTimeout, null)
+    })
+
+    it('_resetPacketWD: sets timeout when configured and open', () => {
+      ws = createTestWSv2Instance({ packetWDDelay: 1000 })
+      ws._isOpen = true
+      ws._resetPacketWD()
+      assert.notStrictEqual(ws._packetWDTimeout, null)
+      clearTimeout(ws._packetWDTimeout)
+    })
+
+    it('_resetPacketWD: clears previous timeout', () => {
+      ws = createTestWSv2Instance({ packetWDDelay: 1000 })
+      ws._isOpen = true
+
+      ws._resetPacketWD()
+      const first = ws._packetWDTimeout
+      ws._resetPacketWD()
+      const second = ws._packetWDTimeout
+
+      assert.notStrictEqual(first, second)
+      clearTimeout(ws._packetWDTimeout)
+    })
+
+    it('_resetPacketWD: does nothing when not open', () => {
+      ws = createTestWSv2Instance({ packetWDDelay: 1000 })
+      ws._isOpen = false
+      ws._resetPacketWD()
+      assert.strictEqual(ws._packetWDTimeout, null)
+    })
+  })
+
+  describe('requestCalc', () => {
+    it('sends calc message when open', (done) => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = {
+        send: (data) => {
+          const parsed = JSON.parse(data)
+          assert.strictEqual(parsed[0], 0)
+          assert.strictEqual(parsed[1], 'calc')
+          done()
+        }
+      }
+
+      ws.requestCalc([['position_tBTCUSD']])
+    })
+  })
+
+  describe('state queries', () => {
+    it('isOpen: reflects connection state', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws.isOpen(), false)
+      ws._isOpen = true
+      assert.strictEqual(ws.isOpen(), true)
+    })
+
+    it('isAuthenticated: reflects auth state', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws.isAuthenticated(), false)
+      ws._isAuthenticated = true
+      assert.strictEqual(ws.isAuthenticated(), true)
+    })
+
+    it('isReconnecting: reflects reconnection state', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws.isReconnecting(), false)
+      ws._isReconnecting = true
+      assert.strictEqual(ws.isReconnecting(), true)
+    })
+
+    it('isFlagEnabled: checks enabled flags', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws.isFlagEnabled(WSv2.flags.SEQ_ALL), false)
+      ws._enabledFlags = WSv2.flags.SEQ_ALL
+      assert.strictEqual(ws.isFlagEnabled(WSv2.flags.SEQ_ALL), true)
+    })
+
+    it('getURL: returns configured URL', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws.getURL(), 'ws://localhost:9997')
+    })
+  })
+
+  describe('updateAuthArgs', () => {
+    it('merges new auth args', () => {
+      ws = createTestWSv2Instance()
+      ws.updateAuthArgs({ apiKey: 'newkey' })
+      assert.strictEqual(ws._authArgs.apiKey, 'newkey')
+      assert.strictEqual(ws._authArgs.apiSecret, API_SECRET)
+    })
+  })
+
+  describe('_propagateMessageToListeners snapshot safety', () => {
+    it('listeners removed during propagation do not break iteration', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = { 0: { channel: 'auth' } }
+
+      let called = false
+
+      ws.onWalletUpdate({ cbGID: 'group1' }, () => {
+        ws.removeListeners('group1')
+      })
+
+      ws.onWalletUpdate({ cbGID: 'group2' }, () => {
+        called = true
+      })
+
+      ws._handleChannelMessage([0, 'wu', []])
+      assert.ok(called)
     })
   })
 })

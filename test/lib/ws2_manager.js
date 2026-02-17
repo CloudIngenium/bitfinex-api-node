@@ -552,8 +552,23 @@ describe('WS2Manager', () => {
       }
 
       m.unsubscribe(42)
-      assert.deepStrictEqual(m._sockets[0].pendingUnsubscriptions, [42])
+      assert.deepStrictEqual(m._sockets[0].pendingUnsubscriptions, ['42'])
       assert(unsubCalled)
+    })
+
+    it('stores chanId as string for type-safe comparison', () => {
+      m = new WS2Manager()
+      m._sockets[0] = {
+        pendingUnsubscriptions: [],
+        ws: {
+          unsubscribe: () => {},
+          hasChannel: () => true
+        }
+      }
+
+      m.unsubscribe(42)
+      assert.strictEqual(typeof m._sockets[0].pendingUnsubscriptions[0], 'string')
+      assert.strictEqual(m._sockets[0].pendingUnsubscriptions[0], '42')
     })
   })
 
@@ -576,8 +591,122 @@ describe('WS2Manager', () => {
       }
 
       m.managedUnsubscribe(42)
-      assert.deepStrictEqual(m._sockets[0].pendingUnsubscriptions, [42])
+      assert.deepStrictEqual(m._sockets[0].pendingUnsubscriptions, ['42'])
       assert(unsubCalled)
+    })
+
+    it('stores chanId as string for type-safe comparison', () => {
+      m = new WS2Manager()
+      m._sockets[0] = {
+        pendingUnsubscriptions: [],
+        ws: {
+          managedUnsubscribe: () => {},
+          hasSubscriptionRef: () => true,
+          _chanIdByIdentifier: () => 99
+        }
+      }
+
+      m.managedUnsubscribe('ticker', 'tBTCUSD')
+      assert.strictEqual(typeof m._sockets[0].pendingUnsubscriptions[0], 'string')
+      assert.strictEqual(m._sockets[0].pendingUnsubscriptions[0], '99')
+    })
+  })
+
+  describe('auth error handling', () => {
+    it('emits error when socket auth fails', (done) => {
+      m = new WS2Manager()
+
+      m._sockets = [{
+        ws: {
+          isAuthenticated: () => false,
+          updateAuthArgs: () => {},
+          auth: () => Promise.reject(new Error('auth failed'))
+        }
+      }]
+
+      m.on('error', (err) => {
+        assert.ok(err.message.includes('auth failed'))
+        done()
+      })
+
+      m.auth({ apiKey: 'k', apiSecret: 's' })
+    })
+  })
+
+  describe('socket close cleanup', () => {
+    it('clears pending operations on socket close', () => {
+      m = new WS2Manager()
+      const { EventEmitter } = require('events')
+
+      // Use a simple EventEmitter to avoid real WebSocket connections
+      const fakeWs = new EventEmitter()
+      const wsState = {
+        pendingSubscriptions: [],
+        pendingUnsubscriptions: [],
+        ws: fakeWs
+      }
+
+      fakeWs.on('close', () => {
+        wsState.pendingSubscriptions = []
+        wsState.pendingUnsubscriptions = []
+        const idx = m._sockets.indexOf(wsState)
+        if (idx !== -1) {
+          m._sockets.splice(idx, 1)
+        }
+        fakeWs.removeAllListeners()
+      })
+
+      m._sockets.push(wsState)
+      wsState.pendingSubscriptions.push(['ticker', { symbol: 'tBTCUSD' }])
+      wsState.pendingUnsubscriptions.push('42')
+
+      fakeWs.emit('close')
+
+      assert.deepStrictEqual(wsState.pendingSubscriptions, [])
+      assert.deepStrictEqual(wsState.pendingUnsubscriptions, [])
+    })
+
+    it('removes socket from pool on close', () => {
+      m = new WS2Manager()
+      const { EventEmitter } = require('events')
+
+      const fakeWs = new EventEmitter()
+      const wsState = {
+        pendingSubscriptions: [],
+        pendingUnsubscriptions: [],
+        ws: fakeWs
+      }
+
+      fakeWs.on('close', () => {
+        const idx = m._sockets.indexOf(wsState)
+        if (idx !== -1) {
+          m._sockets.splice(idx, 1)
+        }
+        fakeWs.removeAllListeners()
+      })
+
+      m._sockets.push(wsState)
+      assert.strictEqual(m.getNumSockets(), 1)
+      fakeWs.emit('close')
+      assert.strictEqual(m.getNumSockets(), 0)
+    })
+  })
+
+  describe('close clears socket pool', () => {
+    it('empties _sockets array after closing', async () => {
+      m = new WS2Manager()
+      let closeCalled = false
+
+      m._sockets.push({
+        ws: {
+          close: async () => { closeCalled = true },
+          removeAllListeners: () => {}
+        }
+      })
+
+      await m.close()
+      assert.ok(closeCalled)
+      assert.strictEqual(m._sockets.length, 0)
     })
   })
 

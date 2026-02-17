@@ -17,7 +17,7 @@
     "lint:fix": "standard --fix",
     "test": "npm run lint && npm run unit",
     "test:watch": "npm run unit -- --watch",
-    "unit": "NODE_ENV=test mocha -b --recursive",
+    "unit": "NODE_ENV=test mocha -b --recursive --exit",
     "docs": "rm -rf docs && jsdoc --configure .jsdoc.json --verbose",
     "docs:serve": "cd docs && python3 -m http.server 8080",
     "clean": "rm -rf node_modules package-lock.json",
