@@ -686,10 +686,10 @@ describe('WSv2 unit', () => {
           done()
         })
 
-        ws._onWSNotification([0, 'on-req', null, null, [0, 0, 42], 0, 'ERROR'])
+        ws._onWSNotification([0, 'on-req', null, null, [0, 0, 42], 0, 'ERROR', 'order failed'])
       })
 
-      ws._onWSNotification([0, 'on-req', null, null, [0, 0, 42], 0, 'SUCCESS'])
+      ws._onWSNotification([0, 'on-req', null, null, [0, 0, 42], 0, 'SUCCESS', 'ok'])
     })
 
     it('_onWSNotification: triggers event callbacks for cancelled orders', (done) => {
@@ -707,10 +707,10 @@ describe('WSv2 unit', () => {
           done()
         })
 
-        ws._onWSNotification([0, 'oc-req', null, null, [42], 0, 'ERROR'])
+        ws._onWSNotification([0, 'oc-req', null, null, [42], 0, 'ERROR', 'cancel failed'])
       })
 
-      ws._onWSNotification([0, 'oc-req', null, null, [42], 0, 'SUCCESS'])
+      ws._onWSNotification([0, 'oc-req', null, null, [42], 0, 'SUCCESS', 'ok'])
     })
   })
 
@@ -2495,13 +2495,13 @@ describe('WSv2 unit', () => {
     it('ignores malformed notifications with non-array data', () => {
       ws = createTestWSv2Instance()
       // Should not throw
-      ws._onWSNotification([0, 'on-req', null, null, 'not-an-array', 0, 'SUCCESS'])
+      ws._onWSNotification([0, 'on-req', null, null, 'not-an-array', 0, 'SUCCESS', 'ok'])
     })
 
     it('ignores on-req with too few elements', () => {
       ws = createTestWSv2Instance()
       // arrN[4] has fewer than 3 elements for on-req
-      ws._onWSNotification([0, 'on-req', null, null, [1, 2], 0, 'SUCCESS'])
+      ws._onWSNotification([0, 'on-req', null, null, [1, 2], 0, 'SUCCESS', 'ok'])
     })
 
     it('handles oc-req correctly', (done) => {
@@ -2511,7 +2511,7 @@ describe('WSv2 unit', () => {
         assert.deepStrictEqual(data, [99])
         done()
       })
-      ws._onWSNotification([0, 'oc-req', null, null, [99], 0, 'SUCCESS'])
+      ws._onWSNotification([0, 'oc-req', null, null, [99], 0, 'SUCCESS', 'ok'])
     })
 
     it('handles ou-req correctly', (done) => {
@@ -2521,7 +2521,7 @@ describe('WSv2 unit', () => {
         assert.deepStrictEqual(data, [55])
         done()
       })
-      ws._onWSNotification([0, 'ou-req', null, null, [55], 0, 'SUCCESS'])
+      ws._onWSNotification([0, 'ou-req', null, null, [55], 0, 'SUCCESS', 'ok'])
     })
   })
 
@@ -2917,6 +2917,912 @@ describe('WSv2 unit', () => {
 
       ws._handleChannelMessage([0, 'wu', []])
       assert.ok(called)
+    })
+  })
+
+  describe('open error handling', () => {
+    it('rejects promise on connection error', async () => {
+      ws = createTestWSv2Instance({ url: 'ws://localhost:1' })
+      // Suppress the error event that fires after rejection
+      ws.on('error', () => {})
+
+      try {
+        await ws.open()
+        assert.fail('should have rejected')
+      } catch (err) {
+        assert.ok(err)
+        assert.ok(err.message || err.code)
+      }
+
+      // Clean up - ws may be in a bad state
+      if (ws._ws) {
+        ws._ws.removeAllListeners()
+        ws._ws = null
+      }
+      ws._isOpen = false
+    })
+  })
+
+  describe('reconnect race condition', () => {
+    it('skips duplicate reconnect calls', async () => {
+      ws = createTestWSv2Instance()
+      ws._isReconnecting = true
+
+      // Should return immediately without error
+      await ws.reconnect()
+      assert.strictEqual(ws._isReconnecting, true)
+    })
+
+    it('sets _isReconnecting flag', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws._isReconnecting, false)
+
+      // Can't fully test reconnect without a server, but verify the guard
+      ws._isReconnecting = true
+      ws.reconnect() // Should silently return
+    })
+  })
+
+  describe('submitOrderMultiOp', () => {
+    it('returns result of send()', async () => {
+      wss = new MockWSv2Server()
+      ws = createTestWSv2Instance()
+      await ws.open()
+      await ws.auth()
+
+      let sentData = null
+      ws.send = (msg) => {
+        sentData = msg
+        return true
+      }
+
+      const result = await ws.submitOrderMultiOp([['on', { type: 'LIMIT' }]])
+      assert.strictEqual(result, true)
+      assert.ok(sentData)
+      assert.strictEqual(sentData[1], 'ox_multi')
+    })
+
+    it('rejects when not authenticated', async () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+
+      try {
+        await ws.submitOrderMultiOp([['on', { type: 'LIMIT' }]])
+        assert.fail('should reject')
+      } catch (err) {
+        assert.ok(err.message.includes('not authenticated'))
+      }
+    })
+  })
+
+  describe('_updateManagedOB error handling', () => {
+    it('returns error on invalid lossless JSON', () => {
+      ws = createTestWSv2Instance({ manageOrderBooks: true })
+      const err = ws._updateManagedOB('tBTCUSD', [1, 2, 3], false, 'not-valid-json{{{')
+      assert.ok(err instanceof Error)
+      assert.ok(err.message.includes('lossless JSON parse error'))
+    })
+
+    it('returns error on null lossless result', () => {
+      ws = createTestWSv2Instance({ manageOrderBooks: true })
+      const err = ws._updateManagedOB('tBTCUSD', [1, 2, 3], false, 'null')
+      assert.ok(err instanceof Error)
+      assert.ok(err.message.includes('invalid lossless OB data'))
+    })
+  })
+
+  describe('_onWSNotification array validation', () => {
+    it('ignores non-array input', () => {
+      ws = createTestWSv2Instance()
+      // Should not throw
+      ws._onWSNotification('not-an-array')
+      ws._onWSNotification(null)
+      ws._onWSNotification(42)
+    })
+
+    it('ignores arrays shorter than 8 elements', () => {
+      ws = createTestWSv2Instance()
+      // Should not throw
+      ws._onWSNotification([0, 'on-req', null, null, [1, 2, 3]])
+      ws._onWSNotification([0, 'on-req', null])
+    })
+
+    it('handles on-req SUCCESS correctly', (done) => {
+      ws = createTestWSv2Instance()
+      ws._eventCallbacks.push('order-new-42', (err, data) => {
+        assert(!err)
+        assert.deepStrictEqual(data, [1, 2, 42])
+        done()
+      })
+      ws._onWSNotification([0, 'on-req', null, null, [1, 2, 42], 0, 'SUCCESS', 'ok'])
+    })
+
+    it('handles on-req ERROR correctly', (done) => {
+      ws = createTestWSv2Instance()
+      ws._eventCallbacks.push('order-new-42', (err) => {
+        assert.ok(err instanceof Error)
+        assert.ok(err.message.includes('ERROR'))
+        done()
+      })
+      ws._onWSNotification([0, 'on-req', null, null, [1, 2, 42], 0, 'ERROR', 'insufficient funds'])
+    })
+
+    it('handles oc-req ERROR correctly', (done) => {
+      ws = createTestWSv2Instance()
+      ws._eventCallbacks.push('order-cancel-99', (err) => {
+        assert.ok(err instanceof Error)
+        assert.ok(err.message.includes('FAILED'))
+        done()
+      })
+      ws._onWSNotification([0, 'oc-req', null, null, [99], 0, 'FAILED', 'order not found'])
+    })
+
+    it('handles ou-req ERROR correctly', (done) => {
+      ws = createTestWSv2Instance()
+      ws._eventCallbacks.push('order-update-55', (err) => {
+        assert.ok(err instanceof Error)
+        assert.ok(err.message.includes('ERROR'))
+        done()
+      })
+      ws._onWSNotification([0, 'ou-req', null, null, [55], 0, 'ERROR', 'invalid'])
+    })
+  })
+
+  describe('_handleTickerMessage', () => {
+    it('ignores ticker messages without symbol', () => {
+      ws = createTestWSv2Instance()
+      let emitted = false
+      ws.on('ticker', () => { emitted = true })
+
+      // chanData without symbol
+      ws._handleTickerMessage([42, [1, 2, 3]], {})
+      assert.ok(!emitted, 'should not emit ticker without symbol')
+    })
+
+    it('emits ticker with valid symbol', () => {
+      ws = createTestWSv2Instance()
+      let emittedSymbol = null
+      ws.on('ticker', (symbol) => { emittedSymbol = symbol })
+
+      ws._handleTickerMessage([42, [1, 2, 3]], { chanId: 42, symbol: 'tBTCUSD' })
+      assert.strictEqual(emittedSymbol, 'tBTCUSD')
+    })
+  })
+
+  describe('_handleEventMessage', () => {
+    it('handles auth success event', () => {
+      ws = createTestWSv2Instance()
+      let authEmitted = false
+      ws.on('auth', () => { authEmitted = true })
+
+      ws._handleEventMessage({ event: 'auth', status: 'OK', chanId: 0 })
+      assert.ok(authEmitted)
+      assert.ok(ws._isAuthenticated)
+    })
+
+    it('handles auth failure event', () => {
+      ws = createTestWSv2Instance()
+      let errorEmitted = false
+      ws.on('error', () => { errorEmitted = true })
+
+      ws._handleEventMessage({ event: 'auth', status: 'FAILED', msg: 'apikey: invalid' })
+      assert.ok(errorEmitted)
+      assert.ok(!ws._isAuthenticated)
+    })
+
+    it('handles subscribed event', () => {
+      ws = createTestWSv2Instance()
+      let subEmitted = false
+      ws.on('subscribed', () => { subEmitted = true })
+
+      ws._handleEventMessage({ event: 'subscribed', channel: 'ticker', chanId: 42, symbol: 'tBTCUSD' })
+      assert.ok(subEmitted)
+      assert.deepStrictEqual(ws._channelMap[42], { event: 'subscribed', channel: 'ticker', chanId: 42, symbol: 'tBTCUSD' })
+    })
+
+    it('handles unsubscribed event', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = { 42: { channel: 'ticker' } }
+      let unsubEmitted = false
+      ws.on('unsubscribed', () => { unsubEmitted = true })
+
+      ws._handleEventMessage({ event: 'unsubscribed', chanId: 42 })
+      assert.ok(unsubEmitted)
+      assert.strictEqual(ws._channelMap[42], undefined)
+    })
+
+    it('handles config success event', () => {
+      ws = createTestWSv2Instance()
+      ws._handleEventMessage({ event: 'conf', status: 'OK', flags: 131072 })
+      assert.strictEqual(ws._enabledFlags, 131072)
+    })
+
+    it('handles config failure event', () => {
+      ws = createTestWSv2Instance()
+      let errorEmitted = false
+      ws.on('error', () => { errorEmitted = true })
+
+      ws._handleEventMessage({ event: 'conf', status: 'FAILED', flags: 131072 })
+      assert.ok(errorEmitted)
+    })
+
+    it('handles error event', () => {
+      ws = createTestWSv2Instance()
+      let errorEmitted = false
+      ws.on('error', () => { errorEmitted = true })
+
+      ws._handleEventMessage({ event: 'error', msg: 'test error' })
+      assert.ok(errorEmitted)
+    })
+
+    it('handles pong event', () => {
+      ws = createTestWSv2Instance()
+      let pongEmitted = false
+      ws.on('pong', () => { pongEmitted = true })
+
+      ws._handleEventMessage({ event: 'pong', ts: 123 })
+      assert.ok(pongEmitted)
+    })
+
+    it('handles info event with version check', () => {
+      ws = createTestWSv2Instance()
+      let infoEmitted = false
+      ws.on('info', () => { infoEmitted = true })
+
+      ws._handleEventMessage({ event: 'info', version: 2, platform: { status: 1 } })
+      assert.ok(infoEmitted)
+    })
+
+    it('emits error on non-v2 server', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = {
+        close: () => {},
+        once: (ev, cb) => { if (ev === 'close') cb() }
+      }
+
+      let errorEmitted = false
+      ws.on('error', () => { errorEmitted = true })
+
+      ws._handleEventMessage({ event: 'info', version: 1 })
+      assert.ok(errorEmitted)
+
+      // Reset state so afterEach cleanup doesn't hang
+      ws._isOpen = false
+      ws._ws = null
+    })
+  })
+
+  describe('_handleChannelMessage', () => {
+    it('ignores unknown channels', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = {}
+
+      // Should not throw
+      ws._handleChannelMessage([999, 'test', []])
+    })
+
+    it('ignores heartbeats', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = { 42: { channel: 'ticker', symbol: 'tBTCUSD' } }
+
+      let emitted = false
+      ws.on('ticker', () => { emitted = true })
+
+      ws._handleChannelMessage([42, 'hb'])
+      assert.ok(!emitted)
+    })
+
+    it('ignores messages with length < 2', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = { 42: { channel: 'ticker', symbol: 'tBTCUSD' } }
+
+      // Should not throw
+      ws._handleChannelMessage([42])
+    })
+  })
+
+  describe('_handleOBChecksumMessage', () => {
+    it('emits cs event', () => {
+      ws = createTestWSv2Instance()
+      let csEmitted = false
+      ws.on('cs', () => { csEmitted = true })
+
+      ws._handleOBChecksumMessage([42, 'cs', 12345], { symbol: 'tBTCUSD', prec: 'P0' })
+      assert.ok(csEmitted)
+    })
+
+    it('skips checksum verification when not managing OBs', () => {
+      ws = createTestWSv2Instance({ manageOrderBooks: false })
+
+      // Should not throw even with no OB data
+      ws._handleOBChecksumMessage([42, 'cs', 12345], { symbol: 'tBTCUSD', prec: 'P0' })
+    })
+  })
+
+  describe('updateOrder', () => {
+    it('rejects when not authenticated', async () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+
+      try {
+        await ws.updateOrder({ id: 1, price: 100 })
+        assert.fail('should reject')
+      } catch (err) {
+        assert.ok(err.message.includes('not authenticated'))
+      }
+    })
+
+    it('rejects when no id provided', async () => {
+      wss = new MockWSv2Server()
+      ws = createTestWSv2Instance()
+      await ws.open()
+      await ws.auth()
+
+      try {
+        await ws.updateOrder({ price: 100 })
+        assert.fail('should reject')
+      } catch (err) {
+        assert.ok(err.message.includes('order ID required'))
+      }
+    })
+
+    it('sends update packet with correct format', async () => {
+      wss = new MockWSv2Server()
+      ws = createTestWSv2Instance()
+      await ws.open()
+      await ws.auth()
+
+      let sentPacket = null
+      ws._sendOrderPacket = (p) => { sentPacket = p }
+
+      // Don't await since we mock the packet sending
+      ws.updateOrder({ id: 42, price: 100 })
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket[1], 'ou')
+      assert.strictEqual(sentPacket[3].id, 42)
+      assert.strictEqual(sentPacket[3].price, 100)
+    })
+  })
+
+  describe('_sendOrderPacket and buffering', () => {
+    it('sends directly when no buffer enabled', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      let sentPacket = null
+      ws.send = (p) => { sentPacket = p; return true }
+
+      ws._sendOrderPacket([0, 'on', null, { type: 'LIMIT' }])
+      assert.ok(sentPacket)
+    })
+
+    it('buffers when buffer delay is set', () => {
+      ws = createTestWSv2Instance({ orderOpBufferDelay: 100 })
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      ws._sendOrderPacket([0, 'on', null, { type: 'LIMIT' }])
+      assert.strictEqual(ws._orderOpBuffer.length, 1)
+
+      // Clean up timeout
+      if (ws._orderOpTimeout !== null) {
+        clearTimeout(ws._orderOpTimeout)
+        ws._orderOpTimeout = null
+      }
+    })
+
+    it('_ensureOrderBuffTimeout only creates one timeout', () => {
+      ws = createTestWSv2Instance({ orderOpBufferDelay: 100 })
+
+      ws._ensureOrderBuffTimeout()
+      const first = ws._orderOpTimeout
+      assert.ok(first !== null)
+
+      ws._ensureOrderBuffTimeout()
+      assert.strictEqual(ws._orderOpTimeout, first)
+
+      clearTimeout(ws._orderOpTimeout)
+      ws._orderOpTimeout = null
+    })
+  })
+
+  describe('_flushOrderOps - batch splitting', () => {
+    it('merges the buffer into ox_multi packet', async () => {
+      ws = createTestWSv2Instance({ orderOpBufferDelay: 100 })
+      ws._isOpen = true
+      ws._isAuthenticated = true
+      ws._ws = { send: () => {} }
+
+      ws._orderOpBuffer = [
+        [0, 'on', null, { type: 'LIMIT', cid: 1 }],
+        [0, 'on', null, { type: 'LIMIT', cid: 2 }]
+      ]
+
+      let sentMsg = null
+      ws.send = (msg) => {
+        sentMsg = msg
+        return true
+      }
+
+      await ws._flushOrderOps()
+      assert.ok(sentMsg)
+      assert.strictEqual(sentMsg[1], 'ox_multi')
+      assert.strictEqual(sentMsg[3].length, 2)
+    })
+
+    it('splits buffer into packets of max 15', async () => {
+      ws = createTestWSv2Instance({ orderOpBufferDelay: 100 })
+      ws._isOpen = true
+      ws._isAuthenticated = true
+      ws._ws = { send: () => {} }
+
+      // Create 20 ops
+      ws._orderOpBuffer = Array.from({ length: 20 }, (_, i) => (
+        [0, 'on', null, { type: 'LIMIT', cid: i }]
+      ))
+
+      const sentMsgs = []
+      ws.send = (msg) => {
+        sentMsgs.push(msg)
+        return true
+      }
+
+      await ws._flushOrderOps()
+      assert.strictEqual(sentMsgs.length, 2)
+      assert.strictEqual(sentMsgs[0][3].length, 15)
+      assert.strictEqual(sentMsgs[1][3].length, 5)
+    })
+  })
+
+  describe('_validateMessageSeq', () => {
+    it('returns null when seq audit is disabled', () => {
+      ws = createTestWSv2Instance({ seqAudit: false })
+      assert.strictEqual(ws._validateMessageSeq([42, 'test', 1]), null)
+    })
+
+    it('returns null for non-array messages', () => {
+      ws = createTestWSv2Instance({ seqAudit: true })
+      assert.strictEqual(ws._validateMessageSeq({ event: 'test' }), null)
+    })
+
+    it('returns null for empty messages', () => {
+      ws = createTestWSv2Instance({ seqAudit: true })
+      assert.strictEqual(ws._validateMessageSeq([]), null)
+    })
+
+    it('accepts first public sequence number', () => {
+      ws = createTestWSv2Instance({ seqAudit: true })
+      const err = ws._validateMessageSeq([42, [[1, 2, 3]], 1])
+      assert.strictEqual(err, null)
+      assert.strictEqual(ws._lastPubSeq, 1)
+    })
+
+    it('detects out-of-order public sequence', () => {
+      ws = createTestWSv2Instance({ seqAudit: true })
+      ws._lastPubSeq = 5
+      const err = ws._validateMessageSeq([42, [[1, 2, 3]], 10])
+      assert.ok(err instanceof Error)
+      assert.ok(err.message.includes('invalid pub seq'))
+    })
+
+    it('accepts sequential public sequence', () => {
+      ws = createTestWSv2Instance({ seqAudit: true })
+      ws._lastPubSeq = 5
+      const err = ws._validateMessageSeq([42, [[1, 2, 3]], 6])
+      assert.strictEqual(err, null)
+    })
+  })
+
+  describe('_handleTradeMessage', () => {
+    it('emits trades event with correct symbol', () => {
+      ws = createTestWSv2Instance()
+      let emittedSymbol = null
+      ws.on('trades', (symbol) => { emittedSymbol = symbol })
+
+      const chanData = { chanId: 42, channel: 'trades', symbol: 'tBTCUSD' }
+      ws._handleTradeMessage([42, 'tu', [1, 2, 3, 4]], chanData)
+      assert.strictEqual(emittedSymbol, 'tBTCUSD')
+    })
+  })
+
+  describe('_handleCandleMessage', () => {
+    it('emits candle event', () => {
+      ws = createTestWSv2Instance()
+      let emittedKey = null
+      ws.on('candle', (data, key) => { emittedKey = key })
+
+      const chanData = { chanId: 42, channel: 'candles', key: 'trade:1m:tBTCUSD' }
+      ws._handleCandleMessage([42, [[1, 2, 3, 4, 5, 6]]], chanData)
+      assert.strictEqual(emittedKey, 'trade:1m:tBTCUSD')
+    })
+
+    it('wraps single candle in array when not managing', () => {
+      ws = createTestWSv2Instance({ manageCandles: false })
+      let emittedData = null
+      ws.on('candle', (data) => { emittedData = data })
+
+      const chanData = { chanId: 42, channel: 'candles', key: 'trade:1m:tBTCUSD' }
+      ws._handleCandleMessage([42, [1, 2, 3, 4, 5, 6]], chanData)
+      // Single candle should be wrapped in array
+      assert.ok(Array.isArray(emittedData))
+      assert.ok(Array.isArray(emittedData[0]))
+    })
+  })
+
+  describe('_updateManagedCandles', () => {
+    it('stores snapshot sorted by timestamp desc', () => {
+      ws = createTestWSv2Instance({ manageCandles: true })
+      const data = [[100, 1, 2, 3, 4, 5], [300, 1, 2, 3, 4, 5], [200, 1, 2, 3, 4, 5]]
+      const err = ws._updateManagedCandles('trade:1m:tBTCUSD', data)
+
+      assert.strictEqual(err, null)
+      assert.strictEqual(ws._candles['trade:1m:tBTCUSD'][0][0], 300)
+      assert.strictEqual(ws._candles['trade:1m:tBTCUSD'][1][0], 200)
+      assert.strictEqual(ws._candles['trade:1m:tBTCUSD'][2][0], 100)
+    })
+
+    it('updates existing candle by timestamp', () => {
+      ws = createTestWSv2Instance({ manageCandles: true })
+      ws._candles['trade:1m:tBTCUSD'] = [
+        [300, 1, 2, 3, 4, 5],
+        [200, 1, 2, 3, 4, 5],
+        [100, 1, 2, 3, 4, 5]
+      ]
+
+      const err = ws._updateManagedCandles('trade:1m:tBTCUSD', [200, 10, 20, 30, 40, 50])
+      assert.strictEqual(err, null)
+      assert.strictEqual(ws._candles['trade:1m:tBTCUSD'][1][1], 10)
+    })
+
+    it('prepends new candle when timestamp not found', () => {
+      ws = createTestWSv2Instance({ manageCandles: true })
+      ws._candles['trade:1m:tBTCUSD'] = [
+        [300, 1, 2, 3, 4, 5],
+        [200, 1, 2, 3, 4, 5]
+      ]
+
+      const err = ws._updateManagedCandles('trade:1m:tBTCUSD', [400, 10, 20, 30, 40, 50])
+      assert.strictEqual(err, null)
+      assert.strictEqual(ws._candles['trade:1m:tBTCUSD'].length, 3)
+      assert.strictEqual(ws._candles['trade:1m:tBTCUSD'][0][0], 400)
+    })
+
+    it('returns error for update on unknown candle set', () => {
+      ws = createTestWSv2Instance({ manageCandles: true })
+      const err = ws._updateManagedCandles('trade:1m:tBTCUSD', [100, 1, 2, 3, 4, 5])
+      assert.ok(err instanceof Error)
+      assert.ok(err.message.includes('unknown candles'))
+    })
+  })
+
+  describe('getOB and getLosslessOB', () => {
+    it('getOB returns null for unknown symbol', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws.getOB('tFOOBAR'), null)
+    })
+
+    it('getLosslessOB returns null for unknown symbol', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws.getLosslessOB('tFOOBAR'), null)
+    })
+  })
+
+  describe('_handleAuthMessage', () => {
+    it('processes notification messages', () => {
+      ws = createTestWSv2Instance()
+      ws._channelMap = { 0: { channel: 'auth' } }
+
+      let notifCalled = false
+      ws._onWSNotification = () => { notifCalled = true }
+
+      ws._handleAuthMessage([0, 'n', [0, 'on-req', null, null, [1, 2, 42], 0, 'SUCCESS', 'ok']], { channel: 'auth' })
+      assert.ok(notifCalled)
+    })
+
+    it('renames te to auth-te', () => {
+      ws = createTestWSv2Instance()
+      const msg = [0, 'te', [1, 2, 3]]
+
+      ws._handleAuthMessage(msg, { channel: 'auth' })
+      assert.strictEqual(msg[1], 'auth-te')
+    })
+
+    it('renames tu to auth-tu', () => {
+      ws = createTestWSv2Instance()
+      const msg = [0, 'tu', [1, 2, 3]]
+
+      ws._handleAuthMessage(msg, { channel: 'auth' })
+      assert.strictEqual(msg[1], 'auth-tu')
+    })
+  })
+
+  describe('subscribe/unsubscribe methods', () => {
+    it('subscribeTicker sends subscribe packet', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      let sentPacket = null
+      ws.send = (p) => { sentPacket = p; return true }
+
+      ws.subscribeTicker('tBTCUSD')
+      // managedSubscribe calls subscribe which calls send
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket.event, 'subscribe')
+      assert.strictEqual(sentPacket.channel, 'ticker')
+      assert.strictEqual(sentPacket.symbol, 'tBTCUSD')
+    })
+
+    it('subscribeTrades sends subscribe packet', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      let sentPacket = null
+      ws.send = (p) => { sentPacket = p; return true }
+
+      ws.subscribeTrades('tBTCUSD')
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket.channel, 'trades')
+    })
+
+    it('subscribeOrderBook sends subscribe packet with precision', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      let sentPacket = null
+      ws.send = (p) => { sentPacket = p; return true }
+
+      ws.subscribeOrderBook('tBTCUSD', 'R0', '100')
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket.channel, 'book')
+      assert.strictEqual(sentPacket.prec, 'R0')
+      assert.strictEqual(sentPacket.len, '100')
+    })
+
+    it('subscribeCandles sends subscribe packet', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      let sentPacket = null
+      ws.send = (p) => { sentPacket = p; return true }
+
+      ws.subscribeCandles('trade:1m:tBTCUSD')
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket.channel, 'candles')
+      assert.strictEqual(sentPacket.key, 'trade:1m:tBTCUSD')
+    })
+
+    it('unsubscribe sends unsubscribe packet', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      let sentPacket = null
+      ws.send = (p) => { sentPacket = p; return true }
+
+      ws.unsubscribe(42)
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket.event, 'unsubscribe')
+      assert.strictEqual(sentPacket.chanId, 42)
+    })
+  })
+
+  describe('removeListeners', () => {
+    it('removes all listeners for a group', () => {
+      ws = createTestWSv2Instance()
+      ws._registerListener('test', null, null, 'group1', () => {})
+      ws._registerListener('test2', null, null, 'group1', () => {})
+
+      assert.ok(ws._listeners.group1)
+      ws.removeListeners('group1')
+      assert.strictEqual(ws._listeners.group1, undefined)
+    })
+  })
+
+  describe('_payloadPassesFilter', () => {
+    it('passes when no filter values are set', () => {
+      assert.ok(WSv2._payloadPassesFilter([1, 2, 3], {}))
+    })
+
+    it('passes when filter values match', () => {
+      assert.ok(WSv2._payloadPassesFilter(['tBTCUSD', 100], { 0: 'tBTCUSD' }))
+    })
+
+    it('fails when filter values do not match', () => {
+      assert.ok(!WSv2._payloadPassesFilter(['tETHUSD', 100], { 0: 'tBTCUSD' }))
+    })
+
+    it('ignores undefined, null, empty, and wildcard filter values', () => {
+      assert.ok(WSv2._payloadPassesFilter([1], { 0: undefined }))
+      assert.ok(WSv2._payloadPassesFilter([1], { 0: null }))
+      assert.ok(WSv2._payloadPassesFilter([1], { 0: '' }))
+      assert.ok(WSv2._payloadPassesFilter([1], { 0: '*' }))
+    })
+  })
+
+  describe('_onWSMessage', () => {
+    it('handles Buffer input (ws v8+)', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+
+      let msgReceived = null
+      ws.on('message', (msg) => { msgReceived = msg })
+
+      // Simulate Buffer message (as ws v8+ sends)
+      const buf = Buffer.from(JSON.stringify({ event: 'info', version: 2 }))
+      ws._onWSMessage(buf)
+      assert.ok(msgReceived)
+      assert.strictEqual(msgReceived.event, 'info')
+    })
+
+    it('emits error on invalid JSON', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+
+      let errorEmitted = false
+      ws.on('error', () => { errorEmitted = true })
+
+      ws._onWSMessage('not-valid-json{{{')
+      assert.ok(errorEmitted)
+    })
+  })
+
+  describe('_triggerPacketWD', () => {
+    it('does nothing when not open', async () => {
+      ws = createTestWSv2Instance({ packetWDDelay: 1000 })
+      ws._isOpen = false
+
+      const result = await ws._triggerPacketWD()
+      assert.ok(result === undefined || result instanceof Promise || result === null)
+    })
+
+    it('does nothing without packetWDDelay', async () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+
+      await ws._triggerPacketWD()
+      // Should resolve without error
+    })
+  })
+
+  describe('resubscribePreviousChannels', () => {
+    it('resubscribes ticker channels', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._ws = { send: () => {} }
+
+      const subscribed = []
+      ws.subscribeTicker = (symbol) => { subscribed.push({ type: 'ticker', symbol }) }
+
+      ws._prevChannelMap = {
+        42: { channel: 'ticker', symbol: 'tBTCUSD' }
+      }
+
+      ws.resubscribePreviousChannels()
+      assert.strictEqual(subscribed.length, 1)
+      assert.strictEqual(subscribed[0].symbol, 'tBTCUSD')
+    })
+
+    it('resubscribes trades channels', () => {
+      ws = createTestWSv2Instance()
+
+      const subscribed = []
+      ws.subscribeTrades = (symbol) => { subscribed.push(symbol) }
+
+      ws._prevChannelMap = {
+        42: { channel: 'trades', symbol: 'tETHUSD' }
+      }
+
+      ws.resubscribePreviousChannels()
+      assert.strictEqual(subscribed.length, 1)
+      assert.strictEqual(subscribed[0], 'tETHUSD')
+    })
+
+    it('resubscribes book channels with precision and length', () => {
+      ws = createTestWSv2Instance()
+
+      const subscribed = []
+      ws.subscribeOrderBook = (symbol, prec, len) => { subscribed.push({ symbol, prec, len }) }
+
+      ws._prevChannelMap = {
+        42: { channel: 'book', symbol: 'tBTCUSD', prec: 'P0', len: '25' }
+      }
+
+      ws.resubscribePreviousChannels()
+      assert.strictEqual(subscribed.length, 1)
+      assert.strictEqual(subscribed[0].symbol, 'tBTCUSD')
+      assert.strictEqual(subscribed[0].prec, 'P0')
+      assert.strictEqual(subscribed[0].len, '25')
+    })
+
+    it('resubscribes candle channels', () => {
+      ws = createTestWSv2Instance()
+
+      const subscribed = []
+      ws.subscribeCandles = (key) => { subscribed.push(key) }
+
+      ws._prevChannelMap = {
+        42: { channel: 'candles', key: 'trade:1m:tBTCUSD' }
+      }
+
+      ws.resubscribePreviousChannels()
+      assert.strictEqual(subscribed.length, 1)
+      assert.strictEqual(subscribed[0], 'trade:1m:tBTCUSD')
+    })
+  })
+
+  describe('notifyUI', () => {
+    it('throws when not open', () => {
+      ws = createTestWSv2Instance()
+      assert.throws(() => ws.notifyUI({ type: 'info', message: 'test' }), /not open/)
+    })
+
+    it('throws when not authenticated', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      assert.throws(() => ws.notifyUI({ type: 'info', message: 'test' }), /not authenticated/)
+    })
+
+    it('throws with missing type', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._isAuthenticated = true
+      assert.throws(() => ws.notifyUI({ message: 'test' }), /invalid type/)
+    })
+
+    it('throws with missing message', () => {
+      ws = createTestWSv2Instance()
+      ws._isOpen = true
+      ws._isAuthenticated = true
+      assert.throws(() => ws.notifyUI({ type: 'info' }), /invalid type/)
+    })
+  })
+
+  describe('auth nonce error detection', () => {
+    it('detects nonce-related auth failures', () => {
+      ws = createTestWSv2Instance()
+      let errorMsg = null
+      ws.on('error', (err) => { errorMsg = err.message })
+
+      ws._handleAuthEvent({ status: 'FAILED', msg: 'nonce: small' })
+      assert.ok(errorMsg.includes('nonce'))
+    })
+
+    it('handles generic auth failures', () => {
+      ws = createTestWSv2Instance()
+      let errorMsg = null
+      ws.on('error', (err) => { errorMsg = err.message })
+
+      ws._handleAuthEvent({ status: 'FAILED', msg: 'apikey: invalid' })
+      assert.ok(errorMsg.includes('auth failed'))
+      assert.ok(errorMsg.includes('apikey: invalid'))
+    })
+  })
+
+  describe('getAuthArgs', () => {
+    it('returns auth args', () => {
+      ws = createTestWSv2Instance()
+      const args = ws.getAuthArgs()
+      assert.strictEqual(args.apiKey, API_KEY)
+      assert.strictEqual(args.apiSecret, API_SECRET)
+    })
+  })
+
+  describe('usesAgent', () => {
+    it('returns false when no agent', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws.usesAgent(), false)
+    })
+
+    it('returns true when agent is set', () => {
+      const agent = new SocksProxyAgent('socks5://localhost:9050')
+      ws = createTestWSv2Instance({ agent })
+      assert.strictEqual(ws.usesAgent(), true)
     })
   })
 })

@@ -183,4 +183,46 @@ describe('BFX', () => {
       assert.ok(BFX.WS2Manager)
     })
   })
+
+  describe('cache key stability', () => {
+    it('returns same cached instance regardless of option key order', () => {
+      const bfx = new BFX()
+      const rest1 = bfx.rest(2, { timeout: 1000, url: 'http://test' })
+      const rest2 = bfx.rest(2, { url: 'http://test', timeout: 1000 })
+      assert.strictEqual(rest1, rest2, 'same opts in different order should return cached instance')
+    })
+
+    it('returns same cached ws instance regardless of option key order', () => {
+      const bfx = new BFX()
+      const ws1 = bfx.ws(2, { transform: true, url: 'ws://test' })
+      const ws2 = bfx.ws(2, { url: 'ws://test', transform: true })
+      assert.strictEqual(ws1, ws2, 'same opts in different order should return cached instance')
+    })
+
+    it('returns different instances for different option values', () => {
+      const bfx = new BFX()
+      const rest1 = bfx.rest(2, { timeout: 1000 })
+      const rest2 = bfx.rest(2, { timeout: 2000 })
+      assert.notStrictEqual(rest1, rest2)
+    })
+
+    it('handles nested objects in cache key', () => {
+      const bfx = new BFX()
+      const rest1 = bfx.rest(2, { headers: { 'X-Test': 'a' } })
+      const rest2 = bfx.rest(2, { headers: { 'X-Test': 'a' } })
+      assert.strictEqual(rest1, rest2)
+    })
+  })
+
+  describe('util exports', () => {
+    it('exports precision utilities from util/index', () => {
+      const util = require('../../lib/util')
+      assert.ok(util.setSigFig)
+      assert.ok(util.setPrecision)
+      assert.ok(util.prepareAmount)
+      assert.ok(util.preparePrice)
+      assert.ok(util.isSnapshot)
+      assert.ok(util.isClass)
+    })
+  })
 })

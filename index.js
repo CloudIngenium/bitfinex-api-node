@@ -6,6 +6,21 @@ const WSv2 = require('./lib/transports/ws2')
 const WS2Manager = require('./lib/ws2_manager')
 
 /**
+ * Generate a deterministic cache key from an object by sorting keys.
+ * Prevents cache collisions from different key orderings.
+ *
+ * @param {object} obj - object to stringify
+ * @returns {string} key
+ * @private
+ */
+const stableStringify = (obj) => {
+  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj)
+  if (Array.isArray(obj)) return JSON.stringify(obj.map(stableStringify))
+  const keys = Object.keys(obj).sort()
+  return '{' + keys.map(k => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',') + '}'
+}
+
+/**
  * Provides access to versions 1 & 2 of the HTTP & WebSocket Bitfinex APIs
  */
 class BFX {
@@ -77,7 +92,7 @@ class BFX {
       throw new Error(`invalid http API version: ${version}`)
     }
 
-    const key = `${version}|${JSON.stringify(extraOpts)}`
+    const key = `${version}|${stableStringify(extraOpts)}`
 
     if (!this._transportCache.rest[key]) {
       const mergedOpts = { ...this._restArgs, ...extraOpts }
@@ -103,7 +118,7 @@ class BFX {
       throw new Error(`invalid websocket API version: ${version}`)
     }
 
-    const key = `${version}|${JSON.stringify(extraOpts)}`
+    const key = `${version}|${stableStringify(extraOpts)}`
 
     if (!this._transportCache.ws[key]) {
       const mergedOpts = { ...this._wsArgs, ...extraOpts }

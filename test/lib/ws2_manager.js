@@ -779,4 +779,214 @@ describe('WS2Manager', () => {
       })
     })
   })
+
+  describe('getSocketInfo', () => {
+    it('returns channel count info for each socket', () => {
+      m = new WS2Manager()
+      m._sockets.push({
+        pendingSubscriptions: [['ticker', { symbol: 'tBTCUSD' }]],
+        pendingUnsubscriptions: [],
+        ws: { getDataChannelCount: () => 2 }
+      })
+      m._sockets.push({
+        pendingSubscriptions: [],
+        pendingUnsubscriptions: [],
+        ws: { getDataChannelCount: () => 5 }
+      })
+
+      const info = m.getSocketInfo()
+      assert.strictEqual(info.length, 2)
+      assert.strictEqual(info[0].nChannels, 3)
+      assert.strictEqual(info[1].nChannels, 5)
+    })
+  })
+
+  describe('getAuthenticatedSocket', () => {
+    it('returns first authenticated socket', () => {
+      m = new WS2Manager()
+      m._sockets.push({
+        ws: { isAuthenticated: () => false }
+      })
+      m._sockets.push({
+        ws: { isAuthenticated: () => true, id: 'auth-socket' }
+      })
+
+      const s = m.getAuthenticatedSocket()
+      assert.ok(s)
+      assert.strictEqual(s.ws.id, 'auth-socket')
+    })
+
+    it('returns undefined when no socket is authenticated', () => {
+      m = new WS2Manager()
+      m._sockets.push({
+        ws: { isAuthenticated: () => false }
+      })
+
+      assert.strictEqual(m.getAuthenticatedSocket(), undefined)
+    })
+  })
+
+  describe('getSocketWithChannel', () => {
+    it('finds socket with matching channel', () => {
+      m = new WS2Manager()
+      m._sockets.push({
+        pendingUnsubscriptions: [],
+        ws: { hasChannel: (id) => id === 42, id: 'match' }
+      })
+
+      const s = m.getSocketWithChannel(42)
+      assert.ok(s)
+      assert.strictEqual(s.ws.id, 'match')
+    })
+
+    it('excludes socket with pending unsub', () => {
+      m = new WS2Manager()
+      m._sockets.push({
+        pendingUnsubscriptions: [42],
+        ws: { hasChannel: () => true }
+      })
+
+      const s = m.getSocketWithChannel(42)
+      assert.strictEqual(s, undefined)
+    })
+  })
+
+  describe('getSocketWithSubRef', () => {
+    it('finds socket with matching subscription ref', () => {
+      m = new WS2Manager()
+      m._sockets.push({
+        ws: { hasSubscriptionRef: (ch, id) => ch === 'ticker' && id === 'tBTCUSD', id: 'match' }
+      })
+
+      const s = m.getSocketWithSubRef('ticker', 'tBTCUSD')
+      assert.ok(s)
+      assert.strictEqual(s.ws.id, 'match')
+    })
+  })
+
+  describe('managedUnsubscribe', () => {
+    it('calls ws.managedUnsubscribe and tracks pending unsub', () => {
+      m = new WS2Manager()
+      let unsubCalled = false
+      const mockWs = {
+        hasSubscriptionRef: () => true,
+        _chanIdByIdentifier: () => '42',
+        managedUnsubscribe: () => { unsubCalled = true }
+      }
+      const wsState = {
+        pendingSubscriptions: [],
+        pendingUnsubscriptions: [],
+        ws: mockWs
+      }
+      m._sockets.push(wsState)
+
+      m.managedUnsubscribe('ticker', 'tBTCUSD')
+      assert.ok(unsubCalled)
+      assert.strictEqual(wsState.pendingUnsubscriptions.length, 1)
+      assert.strictEqual(wsState.pendingUnsubscriptions[0], '42')
+    })
+
+    it('does nothing if no socket has the sub ref', () => {
+      m = new WS2Manager()
+      m._sockets.push({
+        ws: { hasSubscriptionRef: () => false }
+      })
+
+      // Should not throw
+      m.managedUnsubscribe('ticker', 'tBTCUSD')
+    })
+  })
+
+  describe('unsubscribe', () => {
+    it('calls ws.unsubscribe and tracks pending unsub', () => {
+      m = new WS2Manager()
+      let unsubCalled = false
+      const mockWs = {
+        hasChannel: () => true,
+        unsubscribe: () => { unsubCalled = true }
+      }
+      const wsState = {
+        pendingUnsubscriptions: [],
+        ws: mockWs
+      }
+      m._sockets.push(wsState)
+
+      m.unsubscribe(42)
+      assert.ok(unsubCalled)
+      assert.strictEqual(wsState.pendingUnsubscriptions[0], '42')
+    })
+
+    it('does nothing for unknown channel', () => {
+      m = new WS2Manager()
+      m._sockets.push({
+        pendingUnsubscriptions: [],
+        ws: { hasChannel: () => false }
+      })
+
+      // Should not throw
+      m.unsubscribe(999)
+    })
+  })
+
+  describe('constructor', () => {
+    it('stores socket args with reconnect throttler', () => {
+      m = new WS2Manager({ apiKey: 'test' })
+      assert.strictEqual(m._socketArgs.apiKey, 'test')
+      assert.ok(m._socketArgs.reconnectThrottler)
+    })
+
+    it('uses default auth args', () => {
+      m = new WS2Manager()
+      assert.strictEqual(m._authArgs.calc, 0)
+      assert.strictEqual(m._authArgs.dms, 0)
+    })
+
+    it('accepts custom auth args', () => {
+      m = new WS2Manager({}, { calc: 1, dms: 4 })
+      assert.strictEqual(m._authArgs.calc, 1)
+      assert.strictEqual(m._authArgs.dms, 4)
+    })
+  })
+
+  describe('getDataChannelCount', () => {
+    it('counts subscribed + pending - unsubscribing channels', () => {
+      const state = {
+        pendingSubscriptions: [['ticker', {}], ['trades', {}]],
+        pendingUnsubscriptions: ['42'],
+        ws: { getDataChannelCount: () => 5 }
+      }
+
+      assert.strictEqual(WS2Manager.getDataChannelCount(state), 6)
+    })
+  })
+
+  describe('onCandle', () => {
+    it('throws when no matching socket found', () => {
+      m = new WS2Manager()
+      assert.throws(
+        () => m.onCandle({ key: 'trade:1m:tBTCUSD' }, () => {}),
+        /no data socket available/
+      )
+    })
+  })
+
+  describe('onTrades', () => {
+    it('throws when no matching socket found', () => {
+      m = new WS2Manager()
+      assert.throws(
+        () => m.onTrades({ symbol: 'tBTCUSD' }, () => {}),
+        /no data socket available/
+      )
+    })
+  })
+
+  describe('onTicker', () => {
+    it('throws when no matching socket found', () => {
+      m = new WS2Manager()
+      assert.throws(
+        () => m.onTicker({ symbol: 'tBTCUSD' }, () => {}),
+        /no data socket available/
+      )
+    })
+  })
 })
