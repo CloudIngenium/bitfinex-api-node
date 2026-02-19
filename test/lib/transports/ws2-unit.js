@@ -3827,4 +3827,132 @@ describe('WSv2 unit', () => {
       assert.strictEqual(ws.usesAgent(), true)
     })
   })
+
+  describe('constructor option storage', () => {
+    it('stores affCode option', () => {
+      ws = createTestWSv2Instance({ affCode: 'TEST123' })
+      assert.strictEqual(ws._affCode, 'TEST123')
+    })
+
+    it('defaults affCode to undefined', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws._affCode, undefined)
+    })
+
+    it('stores agent option', () => {
+      const agent = new SocksProxyAgent('socks5://localhost:9050')
+      ws = createTestWSv2Instance({ agent })
+      assert.strictEqual(ws._agent, agent)
+    })
+
+    it('defaults manageOrderBooks to false', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws._manageOrderBooks, false)
+    })
+
+    it('defaults manageCandles to false', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws._manageCandles, false)
+    })
+
+    it('defaults autoReconnect to false', () => {
+      ws = createTestWSv2Instance()
+      assert.strictEqual(ws._autoReconnect, false)
+    })
+
+    it('initializes empty internal state', () => {
+      ws = createTestWSv2Instance()
+      assert.deepStrictEqual(ws._orderBooks, {})
+      assert.deepStrictEqual(ws._losslessOrderBooks, {})
+      assert.deepStrictEqual(ws._candles, {})
+      assert.deepStrictEqual(ws._listeners, {})
+      assert.deepStrictEqual(ws._channelMap, {})
+    })
+  })
+
+  describe('submitOrder affCode', () => {
+    it('applies affCode to order packet meta', () => {
+      ws = createTestWSv2Instance({ affCode: 'AFF123' })
+      ws._isAuthenticated = true
+      let sentPacket = null
+      ws._sendOrderPacket = (p) => { sentPacket = p }
+
+      ws.submitOrder({ type: 'LIMIT', symbol: 'tBTCUSD', amount: '1', price: '100', cid: 1 })
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket[3].meta.aff_code, 'AFF123')
+    })
+
+    it('does not overwrite existing aff_code in meta', () => {
+      ws = createTestWSv2Instance({ affCode: 'AFF123' })
+      ws._isAuthenticated = true
+      let sentPacket = null
+      ws._sendOrderPacket = (p) => { sentPacket = p }
+
+      ws.submitOrder({
+        type: 'LIMIT',
+        symbol: 'tBTCUSD',
+        amount: '1',
+        price: '100',
+        cid: 2,
+        meta: { aff_code: 'EXISTING' }
+      })
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket[3].meta.aff_code, 'EXISTING')
+    })
+
+    it('does not add aff_code when affCode is not set', () => {
+      ws = createTestWSv2Instance()
+      ws._isAuthenticated = true
+      let sentPacket = null
+      ws._sendOrderPacket = (p) => { sentPacket = p }
+
+      ws.submitOrder({ type: 'LIMIT', symbol: 'tBTCUSD', amount: '1', price: '100', cid: 3 })
+      assert.ok(sentPacket)
+      assert.strictEqual(sentPacket[3].meta?.aff_code, undefined)
+    })
+  })
+
+  describe('_handleStatusMessage', () => {
+    it('emits status event with data and key', (done) => {
+      ws = createTestWSv2Instance()
+      const chanData = { chanId: 42, channel: 'status', key: 'liq:global' }
+      const statusData = [1, 2, 3]
+
+      ws.on('status', (data, key) => {
+        assert.deepStrictEqual(data, statusData)
+        assert.strictEqual(key, 'liq:global')
+        done()
+      })
+
+      ws._handleStatusMessage([42, statusData], chanData)
+    })
+
+    it('propagates to listeners with filterOverride', () => {
+      ws = createTestWSv2Instance()
+      const chanData = { chanId: 42, channel: 'status', key: 'liq:global' }
+      let propagated = false
+
+      ws._propagateMessageToListeners = (msg, cd, transformed) => {
+        assert.deepStrictEqual(msg.filterOverride, ['liq:global'])
+        assert.strictEqual(transformed, false)
+        propagated = true
+      }
+
+      ws._handleStatusMessage([42, [1, 2, 3]], chanData)
+      assert.ok(propagated)
+    })
+
+    it('extracts payload via getMessagePayload', () => {
+      ws = createTestWSv2Instance()
+      const chanData = { chanId: 42, channel: 'status', key: 'liq:global' }
+      const statusData = [10, 20, 30]
+
+      ws.on('status', (data) => {
+        assert.deepStrictEqual(data, statusData)
+      })
+
+      // Append a sequence number after payload to test getMessagePayload
+      ws._handleStatusMessage([42, statusData, 7], chanData)
+    })
+  })
 })

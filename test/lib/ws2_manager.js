@@ -966,6 +966,46 @@ describe('WS2Manager', () => {
         /no data socket available/
       )
     })
+
+    it('delegates to ws.onCandle on matching socket', (done) => {
+      m = new WS2Manager()
+      const cb = () => {}
+      m._sockets.push({
+        pendingSubscriptions: [],
+        pendingUnsubscriptions: [],
+        ws: {
+          getDataChannelId: (type, filter) => {
+            assert.strictEqual(type, 'candles')
+            assert.deepStrictEqual(filter, { key: 'trade:1m:tBTCUSD' })
+            return 42
+          },
+          onCandle: (opts, fn) => {
+            assert.strictEqual(opts.key, 'trade:1m:tBTCUSD')
+            assert.strictEqual(fn, cb)
+            done()
+          }
+        }
+      })
+
+      m.onCandle({ key: 'trade:1m:tBTCUSD' }, cb)
+    })
+
+    it('forwards cbGID to ws.onCandle', (done) => {
+      m = new WS2Manager()
+      m._sockets.push({
+        pendingSubscriptions: [],
+        pendingUnsubscriptions: [],
+        ws: {
+          getDataChannelId: () => 42,
+          onCandle: (opts) => {
+            assert.strictEqual(opts.cbGID, 'group1')
+            done()
+          }
+        }
+      })
+
+      m.onCandle({ key: 'trade:1m:tBTCUSD', cbGID: 'group1' }, () => {})
+    })
   })
 
   describe('onTrades', () => {
@@ -976,6 +1016,29 @@ describe('WS2Manager', () => {
         /no data socket available/
       )
     })
+
+    it('delegates to ws.onTrades on matching socket', (done) => {
+      m = new WS2Manager()
+      const cb = () => {}
+      m._sockets.push({
+        pendingSubscriptions: [],
+        pendingUnsubscriptions: [],
+        ws: {
+          getDataChannelId: (type, filter) => {
+            assert.strictEqual(type, 'trades')
+            assert.deepStrictEqual(filter, { symbol: 'tBTCUSD' })
+            return 42
+          },
+          onTrades: (opts, fn) => {
+            assert.strictEqual(opts.symbol, 'tBTCUSD')
+            assert.strictEqual(fn, cb)
+            done()
+          }
+        }
+      })
+
+      m.onTrades({ symbol: 'tBTCUSD' }, cb)
+    })
   })
 
   describe('onTicker', () => {
@@ -985,6 +1048,71 @@ describe('WS2Manager', () => {
         () => m.onTicker({ symbol: 'tBTCUSD' }, () => {}),
         /no data socket available/
       )
+    })
+
+    it('delegates to ws.onTicker on matching socket', (done) => {
+      m = new WS2Manager()
+      const cb = () => {}
+      m._sockets.push({
+        pendingSubscriptions: [],
+        pendingUnsubscriptions: [],
+        ws: {
+          getDataChannelId: (type, filter) => {
+            assert.strictEqual(type, 'ticker')
+            assert.deepStrictEqual(filter, { symbol: 'tBTCUSD' })
+            return 42
+          },
+          onTicker: (opts, fn) => {
+            assert.strictEqual(opts.symbol, 'tBTCUSD')
+            assert.strictEqual(fn, cb)
+            done()
+          }
+        }
+      })
+
+      m.onTicker({ symbol: 'tBTCUSD' }, cb)
+    })
+  })
+
+  describe('subscribeTicker', () => {
+    it('delegates to subscribe with ticker type and symbol filter', (done) => {
+      m = new WS2Manager()
+      m.subscribe = (type, ident, filter) => {
+        assert.strictEqual(type, 'ticker')
+        assert.strictEqual(ident, 'tBTCUSD')
+        assert.deepStrictEqual(filter, { symbol: 'tBTCUSD' })
+        done()
+      }
+
+      m.subscribeTicker('tBTCUSD')
+    })
+  })
+
+  describe('subscribeTrades', () => {
+    it('delegates to subscribe with trades type and symbol filter', (done) => {
+      m = new WS2Manager()
+      m.subscribe = (type, ident, filter) => {
+        assert.strictEqual(type, 'trades')
+        assert.strictEqual(ident, 'tBTCUSD')
+        assert.deepStrictEqual(filter, { symbol: 'tBTCUSD' })
+        done()
+      }
+
+      m.subscribeTrades('tBTCUSD')
+    })
+  })
+
+  describe('subscribeCandles', () => {
+    it('delegates to subscribe with candles type and key filter', (done) => {
+      m = new WS2Manager()
+      m.subscribe = (type, ident, filter) => {
+        assert.strictEqual(type, 'candles')
+        assert.strictEqual(ident, 'trade:1m:tBTCUSD')
+        assert.deepStrictEqual(filter, { key: 'trade:1m:tBTCUSD' })
+        done()
+      }
+
+      m.subscribeCandles('trade:1m:tBTCUSD')
     })
   })
 })

@@ -225,4 +225,52 @@ describe('BFX', () => {
       assert.ok(util.isClass)
     })
   })
+
+  describe('ESM named exports', () => {
+    it('exports RESTv1 as a named export', async () => {
+      const { RESTv1 } = await import('../../index.js')
+      assert.strictEqual(typeof RESTv1, 'function')
+    })
+
+    it('exports RESTv2 as a named export', async () => {
+      const { RESTv2 } = await import('../../index.js')
+      assert.strictEqual(typeof RESTv2, 'function')
+    })
+
+    it('exports WSv1 as a named export', async () => {
+      const { WSv1 } = await import('../../index.js')
+      assert.strictEqual(typeof WSv1, 'function')
+    })
+
+    it('exports WSv2 as a named export', async () => {
+      const { WSv2 } = await import('../../index.js')
+      assert.strictEqual(typeof WSv2, 'function')
+    })
+
+    it('exports WS2Manager as a named export', async () => {
+      const { WS2Manager } = await import('../../index.js')
+      assert.strictEqual(typeof WS2Manager, 'function')
+    })
+
+    it('default export is the BFX class', () => {
+      assert.strictEqual(BFX.name, 'BFX')
+      assert.strictEqual(typeof BFX, 'function')
+    })
+
+    it('named exports match static class properties', async () => {
+      const mod = await import('../../index.js')
+      assert.strictEqual(mod.RESTv1, BFX.RESTv1)
+      assert.strictEqual(mod.RESTv2, BFX.RESTv2)
+      assert.strictEqual(mod.WSv1, BFX.WSv1)
+      assert.strictEqual(mod.WSv2, BFX.WSv2)
+      assert.strictEqual(mod.WS2Manager, BFX.WS2Manager)
+    })
+
+    it('util barrel exports all expected symbols as functions', () => {
+      const expected = ['isClass', 'isSnapshot', 'setSigFig', 'setPrecision', 'prepareAmount', 'preparePrice']
+      for (const name of expected) {
+        assert.strictEqual(typeof util[name], 'function', `util.${name} should be a function`)
+      }
+    })
+  })
 })
