@@ -14,7 +14,7 @@ npm uninstall bitfinex-api-node
 npm install @jcbit/bitfinex-api-node
 ```
 
-The package is published on npm under the `@jcbauza` scope.
+The package is published on npm under the `@jcbit` scope.
 
 ## 2. Update import syntax
 

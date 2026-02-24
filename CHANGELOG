@@ -1,3 +1,10 @@
+8.0.1
+- docs: update repo URLs to JCBauza and GitHub Packages links
+- docs: align Node.js requirement to >=22 and ESM import example
+- docs: fix v8 upgrade guide npm scope to @jcbit
+- tests: expand coverage for WSv2, WS2Manager, and utilities
+- meta: repo ownership transfer jcbit -> JCBauza
+
 7.0.0
 - chore: remove pulse deps
 
