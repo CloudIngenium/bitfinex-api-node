@@ -2,7 +2,7 @@
 
 import assert from 'node:assert'
 import _bfxModels from 'bfx-api-node-models'
-import { isClass } from '../../../lib/util/index.js'
+import { isClass } from '../../../dist/util/index.js'
 
 const { TradingTicker } = _bfxModels
 

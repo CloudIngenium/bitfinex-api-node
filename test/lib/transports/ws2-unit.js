@@ -1,17 +1,17 @@
 /* eslint-env mocha */
 
 import assert from 'node:assert'
-import { SocksProxyAgent } from 'socks-proxy-agent'
 import _bfxMockSrv from 'bfx-api-mock-srv'
-import _isFunction from 'lodash/isFunction.js'
-import _isObject from 'lodash/isObject.js'
-import _isString from 'lodash/isString.js'
-import _isEmpty from 'lodash/isEmpty.js'
-import _isError from 'lodash/isError.js'
-import _includes from 'lodash/includes.js'
 import _bfxModels from 'bfx-api-node-models'
 
-import WSv2 from '../../../lib/transports/ws2.js'
+const _isFunction = (v) => typeof v === 'function'
+const _isObject = (v) => v !== null && typeof v === 'object'
+const _isString = (v) => typeof v === 'string'
+const _isEmpty = (v) => !v || (typeof v === 'string' && v.length === 0)
+const _isError = (v) => v instanceof Error
+const _includes = (str, sub) => str.includes(sub)
+
+import WSv2 from '../../../dist/transports/ws2.js'
 
 const { MockWSv2Server } = _bfxMockSrv
 const {
@@ -2084,7 +2084,7 @@ describe('WSv2 unit', () => {
   describe('usesAgent', () => {
     it('returns true if an agent was passed to the constructor', () => {
       ws = createTestWSv2Instance({
-        agent: new SocksProxyAgent('socks4://127.0.0.1:9998')
+        agent: { __testAgent: true }
       })
 
       assert.ok(ws.usesAgent(), 'usesAgent() does not indicate agent presence when one was provided')
@@ -3822,7 +3822,7 @@ describe('WSv2 unit', () => {
     })
 
     it('returns true when agent is set', () => {
-      const agent = new SocksProxyAgent('socks5://localhost:9050')
+      const agent = { __testAgent: true }
       ws = createTestWSv2Instance({ agent })
       assert.strictEqual(ws.usesAgent(), true)
     })
@@ -3840,7 +3840,7 @@ describe('WSv2 unit', () => {
     })
 
     it('stores agent option', () => {
-      const agent = new SocksProxyAgent('socks5://localhost:9050')
+      const agent = { __testAgent: true }
       ws = createTestWSv2Instance({ agent })
       assert.strictEqual(ws._agent, agent)
     })

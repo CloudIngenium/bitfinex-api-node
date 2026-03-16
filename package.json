@@ -1,40 +1,39 @@
 {
   "name": "@jcbit/bitfinex-api-node",
-  "version": "8.0.1",
-  "description": "Node reference library for Bitfinex API - Modernized Fork",
+  "version": "9.0.0",
+  "description": "Node reference library for Bitfinex API - TypeScript Modernized Fork",
   "engines": {
-    "node": ">=22.0.0",
+    "node": ">=24.0.0",
     "npm": ">=10.0.0"
   },
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./index.js"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "npm test"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
-    "lint": "standard",
-    "lint:fix": "standard --fix",
-    "test": "npm run lint && npm run unit",
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "npm run build && npm run lint && npm run unit",
     "test:watch": "npm run unit -- --watch",
     "unit": "NODE_ENV=test mocha -b --recursive --exit",
-    "docs": "rm -rf docs && jsdoc --configure .jsdoc.json --verbose",
-    "docs:serve": "cd docs && python3 -m http.server 8080",
-    "clean": "rm -rf node_modules package-lock.json",
-    "fresh-install": "npm run clean && npm install",
-    "prepare": "husky",
+    "coverage": "c8 --reporter=text --reporter=lcov npm run unit",
+    "coverage:check": "c8 check-coverage --lines 90 --functions 90 --branches 85",
+    "prepare": "npm run build",
     "start": "node examples/rest2/ticker.js",
-    "dev": "nodemon examples/rest2/ticker.js",
     "publish:github": "npm publish --registry https://npm.pkg.github.com",
     "publish:npm": "npm publish --registry https://registry.npmjs.org --access public",
     "publish:both": "npm run publish:github && npm run publish:npm"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jcbauza/bitfinex-api-node.git"
+    "url": "git+https://github.com/CloudIngenium/bitfinex-api-node.git"
   },
   "keywords": [
     "bitfinex",
@@ -44,7 +43,8 @@
     "trading",
     "api",
     "websocket",
-    "rest"
+    "rest",
+    "typescript"
   ],
   "contributors": [
     "JC <jcbauza@users.noreply.github.com> (https://github.com/jcbauza)",
@@ -58,63 +58,41 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jcbauza/bitfinex-api-node/issues"
+    "url": "https://github.com/CloudIngenium/bitfinex-api-node/issues"
   },
-  "homepage": "https://github.com/jcbauza/bitfinex-api-node#readme",
+  "homepage": "https://github.com/CloudIngenium/bitfinex-api-node#readme",
   "devDependencies": {
+    "@types/debug": "^4.1.12",
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.0",
     "bfx-api-mock-srv": "^2.0.0",
-    "blessed": "^0.1.81",
-    "blessed-contrib": "^4.11.0",
-    "cli-table3": "^0.6.5",
-    "docdash": "^2.0.2",
+    "c8": "^10.1.0",
     "dotenv": "^17.2.1",
-    "husky": "^9.1.6",
-    "jsdoc": "^4.0.4",
-    "jsdoc-to-markdown": "^9.1.2",
     "mocha": "^11.7.1",
-    "nodemon": "^3.1.7",
-    "p-iteration": "^1.1.8",
-    "readline-promise": "^1.0.5",
-    "socks-proxy-agent": "^8.0.4",
-    "standard": "^17.1.2"
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.0.0"
   },
   "dependencies": {
     "bfx-api-node-models": "^2.1.0",
-    "@jcbit/bfx-api-node-rest": "^8.0.0",
+    "@jcbit/bfx-api-node-rest": "^9.0.0",
     "bfx-api-node-util": "^1.0.12",
     "bfx-api-node-ws1": "^1.0.4",
     "bignumber.js": "^9.3.1",
-    "cbq": "^0.0.1",
     "debug": "^4.4.1",
-    "lodash": "^4.17.21",
-    "lodash.throttle": "^4.1.1",
     "lossless-json": "^4.1.1",
     "promise-throttle": "^1.1.2",
     "ws": "^8.18.3"
   },
-  "standard": {
-    "ignore": [
-      "/docs/**/*.js"
-    ]
-  },
   "files": [
-    "index.js",
-    "lib/",
+    "dist/",
     "LICENSE.md",
-    "README-FORK.md",
-    "MODERNIZATION.md",
-    "TECHNICAL-REVIEW.md",
-    "ENV-SETUP.md",
-    ".env.example"
+    "README.md"
   ],
   "type": "module",
   "overrides": {
     "bfx-api-node-ws1": {
       "debug": "^4.4.1",
       "ws": "^8.18.3"
-    },
-    "blessed-contrib": {
-      "xml2js": "^0.6.2"
     }
   }
 }

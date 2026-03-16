@@ -1,7 +1,7 @@
 /* eslint-env mocha */
 
 import assert from 'node:assert'
-import { setSigFig, setPrecision, prepareAmount, preparePrice } from '../../../lib/util/precision.js'
+import { setSigFig, setPrecision, prepareAmount, preparePrice } from '../../../dist/util/precision.js'
 
 describe('Precision utilities', () => {
   describe('setSigFig', () => {

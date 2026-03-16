@@ -1,7 +1,7 @@
 /* eslint-env mocha */
 
 import assert from 'node:assert'
-import { RESTv2 } from '../../index.js'
+import { RESTv2 } from '../../dist/index.js'
 
 /**
  * REST v2 Integration Tests

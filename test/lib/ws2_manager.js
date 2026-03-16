@@ -4,8 +4,8 @@ import assert from 'node:assert'
 import { EventEmitter } from 'events'
 import _isObject from 'lodash/isObject.js'
 import _isArray from 'lodash/isArray.js'
-import WS2Manager from '../../lib/ws2_manager.js'
-import WSv2 from '../../lib/transports/ws2.js'
+import WS2Manager from '../../dist/ws2_manager.js'
+import WSv2 from '../../dist/transports/ws2.js'
 
 describe('WS2Manager', () => {
   let m

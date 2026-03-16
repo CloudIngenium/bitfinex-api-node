@@ -1,8 +1,8 @@
 /* eslint-env mocha */
 
 import assert from 'node:assert'
-import BFX from '../../index.js'
-import * as util from '../../lib/util/index.js'
+import BFX from '../../dist/index.js'
+import * as util from '../../dist/util/index.js'
 
 describe('BFX', () => {
   describe('constructor', () => {
@@ -228,27 +228,27 @@ describe('BFX', () => {
 
   describe('ESM named exports', () => {
     it('exports RESTv1 as a named export', async () => {
-      const { RESTv1 } = await import('../../index.js')
+      const { RESTv1 } = await import('../../dist/index.js')
       assert.strictEqual(typeof RESTv1, 'function')
     })
 
     it('exports RESTv2 as a named export', async () => {
-      const { RESTv2 } = await import('../../index.js')
+      const { RESTv2 } = await import('../../dist/index.js')
       assert.strictEqual(typeof RESTv2, 'function')
     })
 
     it('exports WSv1 as a named export', async () => {
-      const { WSv1 } = await import('../../index.js')
+      const { WSv1 } = await import('../../dist/index.js')
       assert.strictEqual(typeof WSv1, 'function')
     })
 
     it('exports WSv2 as a named export', async () => {
-      const { WSv2 } = await import('../../index.js')
+      const { WSv2 } = await import('../../dist/index.js')
       assert.strictEqual(typeof WSv2, 'function')
     })
 
     it('exports WS2Manager as a named export', async () => {
-      const { WS2Manager } = await import('../../index.js')
+      const { WS2Manager } = await import('../../dist/index.js')
       assert.strictEqual(typeof WS2Manager, 'function')
     })
 
@@ -258,7 +258,7 @@ describe('BFX', () => {
     })
 
     it('named exports match static class properties', async () => {
-      const mod = await import('../../index.js')
+      const mod = await import('../../dist/index.js')
       assert.strictEqual(mod.RESTv1, BFX.RESTv1)
       assert.strictEqual(mod.RESTv2, BFX.RESTv2)
       assert.strictEqual(mod.WSv1, BFX.WSv1)

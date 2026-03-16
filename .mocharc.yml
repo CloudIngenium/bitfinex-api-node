@@ -1,0 +1,8 @@
+recursive: true
+exit: true
+spec: 'test/**/*.js'
+ignore:
+  - 'test/examples/**'
+  - 'test/lib/rest2-integration.js'
+  - 'test/lib/transports/ws2-integration.js'
+  - 'test/lib/ws2-subscriptions-integration.js'

@@ -1,7 +1,7 @@
 /* eslint-env mocha */
 
 import assert from 'node:assert'
-import WSv2 from '../../lib/transports/ws2.js'
+import WSv2 from '../../dist/transports/ws2.js'
 
 /**
  * WebSocket v2 Subscription Integration Tests

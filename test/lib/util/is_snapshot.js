@@ -2,7 +2,7 @@
 
 import assert from 'node:assert'
 
-import { isSnapshot } from '../../../lib/util/index.js'
+import { isSnapshot } from '../../../dist/util/index.js'
 
 describe('isSnapshot - detects snapshots by data structure', () => {
   it('returns false for heartbeats', () => {

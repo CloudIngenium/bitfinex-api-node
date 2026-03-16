@@ -1,7 +1,7 @@
 /* eslint-env mocha */
 
 import assert from 'node:assert'
-import getMessagePayload from '../../../lib/util/ws2.js'
+import getMessagePayload from '../../../dist/util/ws2.js'
 
 describe('getMessagePayload', () => {
   it('returns the last array element from a message', () => {
