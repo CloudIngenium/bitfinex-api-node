@@ -1,4 +1,5 @@
 /* eslint-env mocha */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import assert from 'node:assert'
 import { RESTv2 } from '../../dist/index.js'
@@ -14,7 +15,7 @@ describe('RESTv2 integration tests', function () {
   // Allow retries for flaky API responses
   this.retries(2)
 
-  let rest
+  let rest: any
 
   beforeEach(() => {
     rest = new RESTv2({
@@ -45,7 +46,7 @@ describe('RESTv2 integration tests', function () {
         assert.ok(typeof ticker.ask === 'number', 'ask should be a number')
         assert.ok(typeof ticker.lastPrice === 'number', 'lastPrice should be a number')
         assert.ok(ticker.ask >= ticker.bid, 'ask should be >= bid')
-      } catch (err) {
+      } catch (err: any) {
         if (err.message && err.message.includes('500')) {
           this.skip() // Skip if API is having issues
         }
@@ -61,8 +62,8 @@ describe('RESTv2 integration tests', function () {
       assert.ok(tickers.length >= symbols.length, 'should return requested tickers')
 
       // Verify requested symbols are present with valid data
-      symbols.forEach(sym => {
-        const ticker = tickers.find(t => t.symbol === sym)
+      symbols.forEach((sym: string) => {
+        const ticker = tickers.find((t: any) => t.symbol === sym)
         assert.ok(ticker, `should include ${sym}`)
         assert.ok(typeof ticker.lastPrice === 'number', `${sym} should have lastPrice`)
       })
@@ -87,7 +88,7 @@ describe('RESTv2 integration tests', function () {
         assert.ok(typeof trade.mts === 'number', 'trade should have timestamp')
         assert.ok(typeof trade.amount === 'number', 'trade should have amount')
         assert.ok(typeof trade.price === 'number', 'trade should have price')
-      } catch (err) {
+      } catch (err: any) {
         if (err.message && (err.message.includes('500') || err.message.includes('ERR_'))) {
           this.skip() // Skip if API is having issues
         }
@@ -105,7 +106,7 @@ describe('RESTv2 integration tests', function () {
         const entry = book[0]
         assert.ok(Array.isArray(entry), 'entry should be an array')
         assert.ok(entry.length >= 3, 'entry should have price, count, amount')
-      } catch (err) {
+      } catch (err: any) {
         if (err.message && (err.message.includes('500') || err.message.includes('cb param'))) {
           this.skip() // Skip if API signature has changed or having issues
         }
@@ -145,7 +146,7 @@ describe('RESTv2 integration tests', function () {
       assert.ok(Array.isArray(symbols), 'symbols should be an array')
       assert.ok(symbols.length > 0, 'should have symbols')
       // Symbols may be in different formats (with or without colons)
-      const hasbtc = symbols.some(s => s.toLowerCase().includes('btc') && s.toLowerCase().includes('usd'))
+      const hasbtc = symbols.some((s: string) => s.toLowerCase().includes('btc') && s.toLowerCase().includes('usd'))
       assert.ok(hasbtc, 'should include a BTC/USD pair')
     })
 
@@ -164,7 +165,7 @@ describe('RESTv2 integration tests', function () {
         assert.ok(details.length > 0, 'should have details')
 
         // Find any BTC/USD pair (format may vary)
-        const pair = details.find(d =>
+        const pair = details.find((d: any) =>
           d.pair && d.pair.toLowerCase().includes('btc') && d.pair.toLowerCase().includes('usd')
         )
 
@@ -178,7 +179,7 @@ describe('RESTv2 integration tests', function () {
           assert.ok(typeof pair === 'object', 'pair detail should be an object')
           assert.ok(Object.keys(pair).length > 2, 'pair should have multiple properties')
         }
-      } catch (err) {
+      } catch (err: any) {
         if (err.message && err.message.includes('500')) {
           this.skip() // Skip if API is having issues
         }
@@ -188,12 +189,12 @@ describe('RESTv2 integration tests', function () {
   })
 
   describe('authenticated endpoints', () => {
-    const hasCredentials = () => {
-      return process.env.API_KEY && process.env.API_SECRET
+    const hasCredentials = (): boolean => {
+      return !!(process.env.API_KEY && process.env.API_SECRET)
     }
 
     // Helper to handle API errors gracefully
-    const handleAuthError = (testContext, err) => {
+    const handleAuthError = (testContext: Mocha.Context, err: any): boolean => {
       if (err.message && (
         err.message.includes('500') ||
         err.message.includes('apikey') ||
@@ -224,7 +225,7 @@ describe('RESTv2 integration tests', function () {
           assert.ok(wallet.currency, 'wallet should have currency')
           assert.ok(typeof wallet.balance === 'number', 'wallet should have balance')
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!handleAuthError(this, err)) throw err
       }
     })
@@ -241,7 +242,7 @@ describe('RESTv2 integration tests', function () {
           assert.ok(order.symbol, 'order should have symbol')
           assert.ok(typeof order.amount === 'number', 'order should have amount')
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!handleAuthError(this, err)) throw err
       }
     })
@@ -260,7 +261,7 @@ describe('RESTv2 integration tests', function () {
           assert.ok(order.symbol, 'order should have symbol')
           assert.ok(order.status, 'order should have status')
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!handleAuthError(this, err)) throw err
       }
     })
@@ -279,7 +280,7 @@ describe('RESTv2 integration tests', function () {
           assert.ok(typeof trade.execAmount === 'number', 'trade should have execAmount')
           assert.ok(typeof trade.execPrice === 'number', 'trade should have execPrice')
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!handleAuthError(this, err)) throw err
       }
     })
@@ -296,7 +297,7 @@ describe('RESTv2 integration tests', function () {
           assert.ok(typeof position.amount === 'number', 'position should have amount')
           assert.ok(typeof position.basePrice === 'number', 'position should have basePrice')
         }
-      } catch (err) {
+      } catch (err: any) {
         if (!handleAuthError(this, err)) throw err
       }
     })
@@ -308,7 +309,7 @@ describe('RESTv2 integration tests', function () {
         assert.ok(marginInfo, 'margin info should exist')
         assert.ok(Array.isArray(marginInfo) || typeof marginInfo === 'object',
           'margin info should be array or object')
-      } catch (err) {
+      } catch (err: any) {
         if (!handleAuthError(this, err)) throw err
       }
     })
@@ -319,7 +320,7 @@ describe('RESTv2 integration tests', function () {
 
         assert.ok(Array.isArray(permissions), 'permissions should be an array')
         assert.ok(permissions.length > 0, 'should have permissions')
-      } catch (err) {
+      } catch (err: any) {
         if (!handleAuthError(this, err)) throw err
       }
     })
@@ -330,7 +331,7 @@ describe('RESTv2 integration tests', function () {
       try {
         await rest.ticker('INVALID_SYMBOL')
         assert.fail('should have thrown error')
-      } catch (err) {
+      } catch (err: any) {
         assert.ok(err, 'should throw error for invalid symbol')
         assert.ok(err.message || err.error, 'error should have message')
       }
@@ -340,7 +341,7 @@ describe('RESTv2 integration tests', function () {
       this.timeout(5000)
 
       // Make multiple rapid requests
-      const promises = []
+      const promises: Promise<any>[] = []
       for (let i = 0; i < 5; i++) {
         promises.push(rest.status())
       }
@@ -366,7 +367,7 @@ describe('RESTv2 integration tests', function () {
         assert.ok(ticker.symbol, 'should have symbol property')
         assert.ok(typeof ticker.bid === 'number', 'should have bid property')
         assert.ok(typeof ticker.ask === 'number', 'should have ask property')
-      } catch (err) {
+      } catch (err: any) {
         if (err.message && err.message.includes('500')) {
           this.skip()
         }
@@ -383,7 +384,7 @@ describe('RESTv2 integration tests', function () {
 
         assert.ok(Array.isArray(ticker), 'should return array')
         assert.ok(ticker.length > 0, 'array should have elements')
-      } catch (err) {
+      } catch (err: any) {
         if (err.message && err.message.includes('500')) {
           this.skip()
         }

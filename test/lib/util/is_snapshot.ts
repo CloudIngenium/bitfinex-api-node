@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 
 import { isSnapshot } from '../../../dist/util/index.js'
@@ -18,17 +16,22 @@ describe('isSnapshot - detects snapshots by data structure', () => {
   })
 
   it('returns false for null input', () => {
-    assert.strictEqual(isSnapshot(null), false)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    assert.strictEqual(isSnapshot(null as any), false)
   })
 
   it('returns false for undefined input', () => {
-    assert.strictEqual(isSnapshot(undefined), false)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    assert.strictEqual(isSnapshot(undefined as any), false)
   })
 
   it('returns false for non-array input', () => {
-    assert.strictEqual(isSnapshot('string'), false)
-    assert.strictEqual(isSnapshot(42), false)
-    assert.strictEqual(isSnapshot({}), false)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    assert.strictEqual(isSnapshot('string' as any), false)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    assert.strictEqual(isSnapshot(42 as any), false)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    assert.strictEqual(isSnapshot({} as any), false)
   })
 
   it('returns false for empty array', () => {

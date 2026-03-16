@@ -1,4 +1,5 @@
 /* eslint-env mocha */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import assert from 'node:assert'
 import WSv2 from '../../../dist/transports/ws2.js'
@@ -10,7 +11,7 @@ const { MockWSv2Server } = _bfxMockSrv
 const API_KEY = 'dummy'
 const API_SECRET = 'dummy'
 
-const createTestWSv2Instance = (params = {}) => {
+const createTestWSv2Instance = (params: Record<string, any> = {}): any => {
   return new WSv2({
     apiKey: API_KEY,
     apiSecret: API_SECRET,
@@ -21,8 +22,8 @@ const createTestWSv2Instance = (params = {}) => {
 }
 
 describe('WSv2 integration', () => {
-  let ws = null
-  let wss = null
+  let ws: any = null
+  let wss: any = null
 
   afterEach(async () => {
     try { // may fail due to being modified by a test, it's not a problem
@@ -118,7 +119,7 @@ describe('WSv2 integration', () => {
         symbol: 'tBTCUSD'
       }, ws)
 
-      ws._ws.send = (msgJSON) => {
+      ws._ws.send = (msgJSON: string) => {
         const msg = JSON.parse(msgJSON)
 
         assert.strictEqual(msg[0], 0)
@@ -163,7 +164,7 @@ describe('WSv2 integration', () => {
 
       let sendN = 0
 
-      ws._ws.send = (msgJSON) => {
+      ws._ws.send = (msgJSON: string) => {
         const msg = JSON.parse(msgJSON)
         assert.strictEqual(msg[1], 'on')
         sendN++
@@ -207,12 +208,12 @@ describe('WSv2 integration', () => {
         symbol: 'tETHUSD'
       })
 
-      return new Promise((resolve) => {
-        ws._ws.send = (msgJSON) => {
+      return new Promise<void>((resolve) => {
+        ws._ws.send = (msgJSON: string) => {
           const msg = JSON.parse(msgJSON)
           assert.strictEqual(msg[1], 'ox_multi')
 
-          msg[3].forEach((payload) => {
+          msg[3].forEach((payload: any) => {
             assert.strictEqual(payload[0], 'on')
           })
 
@@ -253,7 +254,7 @@ describe('WSv2 integration', () => {
 
       await ws.open()
 
-      wss.on('message', (ws, msg) => {
+      wss.on('message', (ws: any, msg: any) => {
         if (msg.event === 'subscribe' && msg.channel === 'trades') {
           subs++
           ws.send(JSON.stringify({
@@ -283,7 +284,7 @@ describe('WSv2 integration', () => {
         ws.unsubscribeTrades('tBTCUSD')
       })
 
-      return new Promise((resolve) => {
+      return new Promise<void>((resolve) => {
         ws.on('unsubscribed', () => {
           assert.strictEqual(subs, 1)
           assert.strictEqual(unsubs, 1)

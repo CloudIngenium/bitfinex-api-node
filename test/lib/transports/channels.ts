@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 
 import WSv2 from '../../../dist/transports/ws2.js'
@@ -7,7 +5,8 @@ import WSv2 from '../../../dist/transports/ws2.js'
 const API_KEY = 'dummy'
 const API_SECRET = 'dummy'
 
-const createTestWSv2Instance = (params = {}) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const createTestWSv2Instance = (params: Record<string, unknown> = {}): any => {
   return new WSv2({
     apiKey: API_KEY,
     apiSecret: API_SECRET,

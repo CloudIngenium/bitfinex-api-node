@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 import _bfxModels from 'bfx-api-node-models'
 import { isClass } from '../../../dist/util/index.js'

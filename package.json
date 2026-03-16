@@ -63,12 +63,15 @@
   "homepage": "https://github.com/CloudIngenium/bitfinex-api-node#readme",
   "devDependencies": {
     "@types/debug": "^4.1.12",
+    "@types/lodash": "^4.17.24",
+    "@types/mocha": "^10.0.10",
     "@types/node": "^24.0.0",
     "@types/ws": "^8.18.0",
     "bfx-api-mock-srv": "^2.0.0",
     "c8": "^10.1.0",
     "dotenv": "^17.2.1",
     "mocha": "^11.7.1",
+    "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.0.0"
   },

@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 import getMessagePayload from '../../../dist/util/ws2.js'
 

@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 import deepEqual from '../../../dist/util/deep_equal.js'
 

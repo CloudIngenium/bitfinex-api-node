@@ -1,4 +1,5 @@
 /* eslint-env mocha */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import assert from 'node:assert'
 import WSv2 from '../../dist/transports/ws2.js'
@@ -10,7 +11,7 @@ import WSv2 from '../../dist/transports/ws2.js'
 describe('WSv2 subscription integration tests', function () {
   this.timeout(15000) // WebSocket operations can take time
 
-  let ws
+  let ws: any
 
   afterEach(async () => {
     if (ws && ws.isOpen()) {
@@ -90,7 +91,7 @@ describe('WSv2 subscription integration tests', function () {
       ws.open().then(async () => {
         let updateReceived = false
 
-        ws.onTicker({ symbol: 'tBTCUSD' }, (ticker) => {
+        ws.onTicker({ symbol: 'tBTCUSD' }, (ticker: any) => {
           if (!updateReceived) {
             updateReceived = true
 
@@ -144,7 +145,7 @@ describe('WSv2 subscription integration tests', function () {
       ws.open().then(async () => {
         let updateReceived = false
 
-        ws.onTradeEntry({ symbol: 'tBTCUSD' }, (trade) => {
+        ws.onTradeEntry({ symbol: 'tBTCUSD' }, (trade: any) => {
           if (!updateReceived) {
             updateReceived = true
 
@@ -181,7 +182,7 @@ describe('WSv2 subscription integration tests', function () {
       ws.open().then(async () => {
         let snapshotReceived = false
 
-        ws.onOrderBook({ symbol: 'tBTCUSD' }, (book) => {
+        ws.onOrderBook({ symbol: 'tBTCUSD' }, (book: any) => {
           if (!snapshotReceived) {
             snapshotReceived = true
 
@@ -232,7 +233,7 @@ describe('WSv2 subscription integration tests', function () {
       ws.open().then(async () => {
         let candleReceived = false
 
-        ws.onCandle({ key: 'trade:1m:tBTCUSD' }, (candles) => {
+        ws.onCandle({ key: 'trade:1m:tBTCUSD' }, (candles: any) => {
           if (!candleReceived) {
             candleReceived = true
 
@@ -269,8 +270,8 @@ describe('WSv2 subscription integration tests', function () {
   })
 
   describe('authenticated subscriptions', () => {
-    const hasCredentials = () => {
-      return process.env.API_KEY && process.env.API_SECRET
+    const hasCredentials = (): boolean => {
+      return !!(process.env.API_KEY && process.env.API_SECRET)
     }
 
     beforeEach(function () {
@@ -300,7 +301,7 @@ describe('WSv2 subscription integration tests', function () {
       })
 
       ws.open().then(async () => {
-        ws.onWalletSnapshot({}, (wallets) => {
+        ws.onWalletSnapshot({}, (wallets: any) => {
           assert.ok(wallets, 'wallets received')
           assert.ok(Array.isArray(wallets), 'wallets is array')
 
@@ -325,7 +326,7 @@ describe('WSv2 subscription integration tests', function () {
       })
 
       ws.open().then(async () => {
-        ws.onOrderSnapshot({}, (orders) => {
+        ws.onOrderSnapshot({}, (orders: any) => {
           assert.ok(orders, 'orders received')
           assert.ok(Array.isArray(orders), 'orders is array')
           done()
@@ -382,7 +383,7 @@ describe('WSv2 subscription integration tests', function () {
         transform: true
       })
 
-      ws.once('error', (err) => {
+      ws.once('error', (err: Error) => {
         assert.ok(err, 'error event emitted')
         done()
       })
@@ -416,7 +417,7 @@ describe('WSv2 subscription integration tests', function () {
       ws = new WSv2({ transform: true })
 
       ws.open().then(async () => {
-        ws.onTicker({ symbol: 'tBTCUSD' }, (ticker) => {
+        ws.onTicker({ symbol: 'tBTCUSD' }, (ticker: any) => {
           assert.ok(typeof ticker === 'object', 'ticker is object')
           assert.ok(ticker.symbol, 'has symbol property')
           assert.ok(typeof ticker.bid === 'number', 'has bid property')
@@ -431,7 +432,7 @@ describe('WSv2 subscription integration tests', function () {
       ws = new WSv2({ transform: false })
 
       ws.open().then(async () => {
-        ws.onTicker({ symbol: 'tBTCUSD' }, (ticker) => {
+        ws.onTicker({ symbol: 'tBTCUSD' }, (ticker: any) => {
           assert.ok(Array.isArray(ticker), 'ticker is array')
           assert.ok(ticker.length > 0, 'array has elements')
           done()

@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 import BFX from '../dist/index.js'
 import { RESTv1, RESTv2 } from '@jcbit/bfx-api-node-rest'
@@ -13,16 +11,20 @@ describe('BFX', () => {
 
   describe('constructor', () => {
     it('throws on using the deprecated way to set options', () => {
-      assert.throws(() => new BFX(2, {}))
-      assert.throws(() => new BFX('dummy', 'dummy', 2))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => new (BFX as any)(2, {}))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => new (BFX as any)('dummy', 'dummy', 2))
     })
   })
 
   describe('rest', () => {
     it('throws an error if an invalid version is requested', () => {
       const bfx = new BFX()
-      assert.throws(bfx.rest.bind(bfx, 0))
-      assert.throws(bfx.rest.bind(bfx, 3))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(bfx.rest.bind(bfx, 0 as any))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(bfx.rest.bind(bfx, 3 as any))
     })
 
     it('returns correct REST api by version', () => {
@@ -75,8 +77,10 @@ describe('BFX', () => {
   describe('ws', () => {
     it('throws an error if an invalid version is requested', () => {
       const bfx = new BFX()
-      assert.throws(bfx.ws.bind(bfx, 0))
-      assert.throws(bfx.ws.bind(bfx, 3))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(bfx.ws.bind(bfx, 0 as any))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(bfx.ws.bind(bfx, 3 as any))
     })
 
     it('returns correct WebSocket api by version', () => {

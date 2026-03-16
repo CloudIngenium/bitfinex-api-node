@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 import throttle from '../../../dist/util/throttle.js'
 
@@ -12,8 +10,8 @@ describe('throttle', () => {
   })
 
   it('defers a second call within the delay', (done) => {
-    const calls = []
-    const fn = throttle((v) => { calls.push(v) }, 30)
+    const calls: string[] = []
+    const fn = throttle((v: string) => { calls.push(v) }, 30)
 
     fn('first')
     fn('second')
@@ -29,8 +27,8 @@ describe('throttle', () => {
   })
 
   it('uses latest args for trailing call', (done) => {
-    const calls = []
-    const fn = throttle((v) => { calls.push(v) }, 30)
+    const calls: string[] = []
+    const fn = throttle((v: string) => { calls.push(v) }, 30)
 
     fn('a')
     fn('b')
@@ -59,8 +57,8 @@ describe('throttle', () => {
   })
 
   it('clears pending timer when immediate call happens', (done) => {
-    const calls = []
-    const fn = throttle((v) => { calls.push(v) }, 20)
+    const calls: string[] = []
+    const fn = throttle((v: string) => { calls.push(v) }, 20)
 
     fn('first')
     fn('queued')

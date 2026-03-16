@@ -1,5 +1,3 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 import { setSigFig, setPrecision, prepareAmount, preparePrice } from '../../../dist/util/precision.js'
 
@@ -144,8 +142,10 @@ describe('Precision utilities', () => {
 
   describe('edge cases', () => {
     it('handles string inputs that can be converted to numbers', () => {
-      assert.strictEqual(preparePrice('123.45'), '123.45')
-      assert.strictEqual(prepareAmount('1.23'), '1.23000000')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.strictEqual(preparePrice('123.45' as any), '123.45')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.strictEqual(prepareAmount('1.23' as any), '1.23000000')
     })
 
     it('handles very large numbers consistently', () => {

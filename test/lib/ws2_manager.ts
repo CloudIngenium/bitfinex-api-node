@@ -1,4 +1,5 @@
 /* eslint-env mocha */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import assert from 'node:assert'
 import { EventEmitter } from 'events'
@@ -8,7 +9,7 @@ import WS2Manager from '../../dist/ws2_manager.js'
 import WSv2 from '../../dist/transports/ws2.js'
 
 describe('WS2Manager', () => {
-  let m
+  let m: any
 
   afterEach(async () => {
     if (m) {
@@ -17,7 +18,7 @@ describe('WS2Manager', () => {
       } catch (e) {
         assert.ok(true, 'may fail due to being modified internally')
       } finally {
-        m = null // eslint-disable-line
+        m = null
       }
     }
   })
@@ -137,7 +138,7 @@ describe('WS2Manager', () => {
       const info = m.getSocketInfo()
 
       assert.ok(_isArray(info), 'did not return array')
-      info.forEach(i => assert.ok(_isObject(i), 'socket info not an object'))
+      info.forEach((i: any) => assert.ok(_isObject(i), 'socket info not an object'))
       assert.strictEqual(info[0].nChannels, 4, 'socket info does not report correct number of channels')
       assert.strictEqual(info[1].nChannels, 5, 'socket info does not report correct number of channels')
     })
@@ -182,13 +183,13 @@ describe('WS2Manager', () => {
     })
 
     it('calls auth on existing unauthenticated sockets', (done) => {
-      let cred = false
+      let cred: string | boolean = false
       m = new WS2Manager()
 
       m._sockets = [{
         ws: {
           isAuthenticated: () => false,
-          updateAuthArgs: ({ apiKey: key, apiSecret: secret }) => { cred = `${key}:${secret}` },
+          updateAuthArgs: ({ apiKey: key, apiSecret: secret }: { apiKey: string; apiSecret: string }) => { cred = `${key}:${secret}` },
           auth: () => {
             assert.strictEqual(cred, '41:42')
             done()
@@ -202,7 +203,7 @@ describe('WS2Manager', () => {
 
   describe('openSocket', () => {
     it('binds listeners to forward events', async () => {
-      const heardEvents = {}
+      const heardEvents: Record<string, boolean> = {}
       const events = [
         'open', 'message', 'auth', 'error', 'close', 'subscribed',
         'unsubscribed'
@@ -212,16 +213,16 @@ describe('WS2Manager', () => {
       const s = m.openSocket()
       const { ws } = s
 
-      events.forEach(e => {
+      events.forEach((e: string) => {
         m.on(e, () => { heardEvents[e] = true })
       })
 
-      events.forEach(e => ws.emit(e))
-      events.forEach(e => {
+      events.forEach((e: string) => ws.emit(e))
+      events.forEach((e: string) => {
         assert(heardEvents[e])
       })
 
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
         ws.on('open', () => ws.close().then(resolve).catch(reject))
       })
     }).timeout(4000)
@@ -233,7 +234,7 @@ describe('WS2Manager', () => {
 
       assert.deepStrictEqual(m._sockets[0], s)
 
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
         ws.on('open', () => ws.close().then(resolve).catch(reject))
       })
     }).timeout(4000)
@@ -248,7 +249,7 @@ describe('WS2Manager', () => {
 
       assert.strictEqual(s.pendingUnsubscriptions.length, 0)
 
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
         ws.on('open', () => ws.close().then(resolve).catch(reject))
       })
     }).timeout(4000)
@@ -268,7 +269,7 @@ describe('WS2Manager', () => {
 
       assert.strictEqual(s.pendingSubscriptions.length, 0)
 
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
         ws.on('open', () => ws.close().then(resolve).catch(reject))
       })
     }).timeout(4000)
@@ -353,7 +354,7 @@ describe('WS2Manager', () => {
       /// /
       m._sockets[0] = {
         ws: {
-          getDataChannelId: (type, filter) => {
+          getDataChannelId: (type: string, filter: any) => {
             assert.strictEqual(type, 'candles')
             assert.deepStrictEqual(filter, { key: 'test' })
             return 1
@@ -369,7 +370,7 @@ describe('WS2Manager', () => {
       /// /
       m._sockets[0] = {
         ws: {
-          getDataChannelId: (type, filter) => {
+          getDataChannelId: (type: string, filter: any) => {
             assert.strictEqual(type, 'candles')
             assert.deepStrictEqual(filter, { key: 'test' })
             return 1
@@ -390,7 +391,7 @@ describe('WS2Manager', () => {
       m._sockets[0] = {
         pendingUnsubscriptions: [],
         ws: {
-          hasChannel: (id) => {
+          hasChannel: (id: number) => {
             return id === 42
           }
         }
@@ -403,7 +404,7 @@ describe('WS2Manager', () => {
       m._sockets[0] = {
         pendingUnsubscriptions: [42],
         ws: {
-          hasChannel: (id) => {
+          hasChannel: (id: number) => {
             return id === 42
           }
         }
@@ -422,7 +423,7 @@ describe('WS2Manager', () => {
         m._sockets.push({
           test: i,
           ws: {
-            hasSubscriptionRef: (channel, identifier) => {
+            hasSubscriptionRef: (channel: string, identifier: string) => {
               assert.strictEqual(channel, 'a', 'did not pass channel through')
               assert.strictEqual(identifier, 'b', 'did not pass identifier through')
               return i === 1
@@ -449,7 +450,7 @@ describe('WS2Manager', () => {
           getDataChannelCount: () => 0,
           managedSubscribe: () => assert(false),
           isOpen: () => false,
-          once: (eName) => {
+          once: (eName: string) => {
             assert.strictEqual(eName, 'open')
             onceOpenCalled = true
           }
@@ -514,7 +515,7 @@ describe('WS2Manager', () => {
         openCalled = true
 
         const state = {
-          pendingSubscriptions: [],
+          pendingSubscriptions: [] as any[],
           ws: {
             once: () => {},
             isOpen: () => false // to avoid managed sub
@@ -540,12 +541,12 @@ describe('WS2Manager', () => {
       m._sockets[0] = {
         pendingUnsubscriptions: [],
         ws: {
-          unsubscribe: (cid) => {
+          unsubscribe: (cid: number) => {
             assert.strictEqual(cid, 42)
             unsubCalled = true
           },
 
-          hasChannel: (cid) => {
+          hasChannel: (cid: number) => {
             return cid === 42
           }
         }
@@ -580,12 +581,12 @@ describe('WS2Manager', () => {
       m._sockets[0] = {
         pendingUnsubscriptions: [],
         ws: {
-          managedUnsubscribe: (cid) => {
+          managedUnsubscribe: (cid: number) => {
             assert.strictEqual(cid, 42)
             unsubCalled = true
           },
 
-          hasSubscriptionRef: (cid) => cid === 42,
+          hasSubscriptionRef: (cid: number) => cid === 42,
           _chanIdByIdentifier: () => 42
         }
       }
@@ -624,7 +625,7 @@ describe('WS2Manager', () => {
         }
       }]
 
-      m.on('error', (err) => {
+      m.on('error', (err: Error) => {
         assert.ok(err.message.includes('auth failed'))
         done()
       })
@@ -639,7 +640,7 @@ describe('WS2Manager', () => {
 
       // Use a simple EventEmitter to avoid real WebSocket connections
       const fakeWs = new EventEmitter()
-      const wsState = {
+      const wsState: any = {
         pendingSubscriptions: [],
         pendingUnsubscriptions: [],
         ws: fakeWs
@@ -669,7 +670,7 @@ describe('WS2Manager', () => {
       m = new WS2Manager()
 
       const fakeWs = new EventEmitter()
-      const wsState = {
+      const wsState: any = {
         pendingSubscriptions: [],
         pendingUnsubscriptions: [],
         ws: fakeWs
@@ -711,10 +712,10 @@ describe('WS2Manager', () => {
   describe('withAllSockets', () => {
     it('calls the provided cb with all internal sockets', () => {
       m = new WS2Manager()
-      const socketsSeen = {}
+      const socketsSeen: Record<string, boolean> = {}
 
       m._sockets = ['a', 'b', 'c']
-      m.withAllSockets((sock) => {
+      m.withAllSockets((sock: string) => {
         socketsSeen[sock] = true
       })
 
@@ -727,7 +728,7 @@ describe('WS2Manager', () => {
   describe('subscribeOrderBook', () => {
     it('calls subscribe with a valid filter and the provided symbol', (done) => {
       m = new WS2Manager()
-      m.subscribe = (type, symbol, filter) => {
+      m.subscribe = (type: string, symbol: string, filter: any) => {
         assert.ok(_isObject(filter), 'filter not an object')
         assert.strictEqual(filter.symbol, 'tBTCUSD', 'symbol did not match')
         assert.strictEqual(filter.prec, 'P0', 'prec did not match')
@@ -743,7 +744,7 @@ describe('WS2Manager', () => {
 
   describe('onOrderBook', () => {
     it('passes a valid OB filter to the first socket with a book channel', (done) => {
-      const assertFilter = (filter) => {
+      const assertFilter = (filter: any) => {
         assert.ok(_isObject(filter), 'filter not an object')
         assert.strictEqual(filter.symbol, 'tBTCUSD', 'symbol did not match')
         assert.strictEqual(filter.prec, 'P0', 'prec did not match')
@@ -756,13 +757,13 @@ describe('WS2Manager', () => {
         pendingSubscriptions: [],
         pendingUnsubscriptions: [],
         ws: {
-          getDataChannelId: (type, filter) => {
+          getDataChannelId: (type: string, filter: any) => {
             assert.strictEqual(type, 'book')
             assertFilter(filter)
             return 42
           },
 
-          onOrderBook: (filter) => {
+          onOrderBook: (filter: any) => {
             assertFilter(filter)
             done()
           }
@@ -829,7 +830,7 @@ describe('WS2Manager', () => {
       m = new WS2Manager()
       m._sockets.push({
         pendingUnsubscriptions: [],
-        ws: { hasChannel: (id) => id === 42, id: 'match' }
+        ws: { hasChannel: (id: number) => id === 42, id: 'match' }
       })
 
       const s = m.getSocketWithChannel(42)
@@ -853,7 +854,7 @@ describe('WS2Manager', () => {
     it('finds socket with matching subscription ref', () => {
       m = new WS2Manager()
       m._sockets.push({
-        ws: { hasSubscriptionRef: (ch, id) => ch === 'ticker' && id === 'tBTCUSD', id: 'match' }
+        ws: { hasSubscriptionRef: (ch: string, id: string) => ch === 'ticker' && id === 'tBTCUSD', id: 'match' }
       })
 
       const s = m.getSocketWithSubRef('ticker', 'tBTCUSD')
@@ -873,7 +874,7 @@ describe('WS2Manager', () => {
       }
       const wsState = {
         pendingSubscriptions: [],
-        pendingUnsubscriptions: [],
+        pendingUnsubscriptions: [] as string[],
         ws: mockWs
       }
       m._sockets.push(wsState)
@@ -904,7 +905,7 @@ describe('WS2Manager', () => {
         unsubscribe: () => { unsubCalled = true }
       }
       const wsState = {
-        pendingUnsubscriptions: [],
+        pendingUnsubscriptions: [] as string[],
         ws: mockWs
       }
       m._sockets.push(wsState)
@@ -974,12 +975,12 @@ describe('WS2Manager', () => {
         pendingSubscriptions: [],
         pendingUnsubscriptions: [],
         ws: {
-          getDataChannelId: (type, filter) => {
+          getDataChannelId: (type: string, filter: any) => {
             assert.strictEqual(type, 'candles')
             assert.deepStrictEqual(filter, { key: 'trade:1m:tBTCUSD' })
             return 42
           },
-          onCandle: (opts, fn) => {
+          onCandle: (opts: any, fn: any) => {
             assert.strictEqual(opts.key, 'trade:1m:tBTCUSD')
             assert.strictEqual(fn, cb)
             done()
@@ -997,7 +998,7 @@ describe('WS2Manager', () => {
         pendingUnsubscriptions: [],
         ws: {
           getDataChannelId: () => 42,
-          onCandle: (opts) => {
+          onCandle: (opts: any) => {
             assert.strictEqual(opts.cbGID, 'group1')
             done()
           }
@@ -1024,12 +1025,12 @@ describe('WS2Manager', () => {
         pendingSubscriptions: [],
         pendingUnsubscriptions: [],
         ws: {
-          getDataChannelId: (type, filter) => {
+          getDataChannelId: (type: string, filter: any) => {
             assert.strictEqual(type, 'trades')
             assert.deepStrictEqual(filter, { symbol: 'tBTCUSD' })
             return 42
           },
-          onTrades: (opts, fn) => {
+          onTrades: (opts: any, fn: any) => {
             assert.strictEqual(opts.symbol, 'tBTCUSD')
             assert.strictEqual(fn, cb)
             done()
@@ -1057,12 +1058,12 @@ describe('WS2Manager', () => {
         pendingSubscriptions: [],
         pendingUnsubscriptions: [],
         ws: {
-          getDataChannelId: (type, filter) => {
+          getDataChannelId: (type: string, filter: any) => {
             assert.strictEqual(type, 'ticker')
             assert.deepStrictEqual(filter, { symbol: 'tBTCUSD' })
             return 42
           },
-          onTicker: (opts, fn) => {
+          onTicker: (opts: any, fn: any) => {
             assert.strictEqual(opts.symbol, 'tBTCUSD')
             assert.strictEqual(fn, cb)
             done()
@@ -1077,7 +1078,7 @@ describe('WS2Manager', () => {
   describe('subscribeTicker', () => {
     it('delegates to subscribe with ticker type and symbol filter', (done) => {
       m = new WS2Manager()
-      m.subscribe = (type, ident, filter) => {
+      m.subscribe = (type: string, ident: string, filter: any) => {
         assert.strictEqual(type, 'ticker')
         assert.strictEqual(ident, 'tBTCUSD')
         assert.deepStrictEqual(filter, { symbol: 'tBTCUSD' })
@@ -1091,7 +1092,7 @@ describe('WS2Manager', () => {
   describe('subscribeTrades', () => {
     it('delegates to subscribe with trades type and symbol filter', (done) => {
       m = new WS2Manager()
-      m.subscribe = (type, ident, filter) => {
+      m.subscribe = (type: string, ident: string, filter: any) => {
         assert.strictEqual(type, 'trades')
         assert.strictEqual(ident, 'tBTCUSD')
         assert.deepStrictEqual(filter, { symbol: 'tBTCUSD' })
@@ -1105,7 +1106,7 @@ describe('WS2Manager', () => {
   describe('subscribeCandles', () => {
     it('delegates to subscribe with candles type and key filter', (done) => {
       m = new WS2Manager()
-      m.subscribe = (type, ident, filter) => {
+      m.subscribe = (type: string, ident: string, filter: any) => {
         assert.strictEqual(type, 'candles')
         assert.strictEqual(ident, 'trade:1m:tBTCUSD')
         assert.deepStrictEqual(filter, { key: 'trade:1m:tBTCUSD' })

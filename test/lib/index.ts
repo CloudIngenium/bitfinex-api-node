@@ -1,67 +1,71 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 import BFX from '../../dist/index.js'
 import * as util from '../../dist/util/index.js'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyBFX = any
+
 describe('BFX', () => {
   describe('constructor', () => {
     it('throws on non-object argument', () => {
-      assert.throws(() => new BFX('string'), /constructor takes an object/)
-      assert.throws(() => new BFX(42), /constructor takes an object/)
-      assert.throws(() => new BFX(true), /constructor takes an object/)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => new BFX('string' as any), /constructor takes an object/)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => new BFX(42 as any), /constructor takes an object/)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => new BFX(true as any), /constructor takes an object/)
     })
 
     it('accepts empty object', () => {
-      const bfx = new BFX({})
+      const bfx: AnyBFX = new BFX({})
       assert.ok(bfx)
       assert.strictEqual(bfx._apiKey, '')
       assert.strictEqual(bfx._apiSecret, '')
     })
 
     it('accepts no arguments (defaults)', () => {
-      const bfx = new BFX()
+      const bfx: AnyBFX = new BFX()
       assert.ok(bfx)
       assert.strictEqual(bfx._transform, false)
     })
 
     it('stores API credentials', () => {
-      const bfx = new BFX({ apiKey: 'key123', apiSecret: 'secret456' })
+      const bfx: AnyBFX = new BFX({ apiKey: 'key123', apiSecret: 'secret456' })
       assert.strictEqual(bfx._apiKey, 'key123')
       assert.strictEqual(bfx._apiSecret, 'secret456')
     })
 
     it('stores optional auth fields', () => {
-      const bfx = new BFX({ authToken: 'token', company: 'myco' })
+      const bfx: AnyBFX = new BFX({ authToken: 'token', company: 'myco' })
       assert.strictEqual(bfx._authToken, 'token')
       assert.strictEqual(bfx._company, 'myco')
     })
 
     it('stores transform flag', () => {
-      const bfx = new BFX({ transform: true })
+      const bfx: AnyBFX = new BFX({ transform: true })
       assert.strictEqual(bfx._transform, true)
 
-      const bfx2 = new BFX({ transform: false })
+      const bfx2: AnyBFX = new BFX({ transform: false })
       assert.strictEqual(bfx2._transform, false)
     })
 
     it('stores transport args', () => {
       const ws = { url: 'ws://test' }
       const rest = { url: 'http://test' }
-      const bfx = new BFX({ ws, rest })
+      const bfx: AnyBFX = new BFX({ ws, rest })
       assert.deepStrictEqual(bfx._wsArgs, ws)
       assert.deepStrictEqual(bfx._restArgs, rest)
     })
 
     it('initializes empty transport cache', () => {
-      const bfx = new BFX()
+      const bfx: AnyBFX = new BFX()
       assert.deepStrictEqual(bfx._transportCache, { rest: {}, ws: {} })
     })
   })
 
   describe('_getTransportPayload', () => {
     it('includes all credentials in payload', () => {
-      const bfx = new BFX({
+      const bfx: AnyBFX = new BFX({
         apiKey: 'k', apiSecret: 's', authToken: 't', company: 'c', transform: true
       })
       const payload = bfx._getTransportPayload({})
@@ -73,7 +77,7 @@ describe('BFX', () => {
     })
 
     it('merges extra options', () => {
-      const bfx = new BFX({ apiKey: 'k' })
+      const bfx: AnyBFX = new BFX({ apiKey: 'k' })
       const payload = bfx._getTransportPayload({ timeout: 5000 })
       assert.strictEqual(payload.apiKey, 'k')
       assert.strictEqual(payload.timeout, 5000)
@@ -83,8 +87,10 @@ describe('BFX', () => {
   describe('rest', () => {
     it('throws on invalid version', () => {
       const bfx = new BFX()
-      assert.throws(() => bfx.rest(3))
-      assert.throws(() => bfx.rest(0))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => bfx.rest(3 as any))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => bfx.rest(0 as any))
     })
 
     it('returns RESTv2 instance by default', () => {
@@ -134,8 +140,10 @@ describe('BFX', () => {
   describe('ws', () => {
     it('throws on invalid version', () => {
       const bfx = new BFX()
-      assert.throws(() => bfx.ws(3))
-      assert.throws(() => bfx.ws(0))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => bfx.ws(3 as any))
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      assert.throws(() => bfx.ws(0 as any))
     })
 
     it('returns WSv2 instance by default', () => {
@@ -216,7 +224,6 @@ describe('BFX', () => {
 
   describe('util exports', () => {
     it('exports precision utilities from util/index', () => {
-      // util is imported at the top of the file
       assert.ok(util.setSigFig)
       assert.ok(util.setPrecision)
       assert.ok(util.prepareAmount)
@@ -267,7 +274,7 @@ describe('BFX', () => {
     })
 
     it('util barrel exports all expected symbols as functions', () => {
-      const expected = ['isClass', 'isSnapshot', 'setSigFig', 'setPrecision', 'prepareAmount', 'preparePrice']
+      const expected = ['isClass', 'isSnapshot', 'setSigFig', 'setPrecision', 'prepareAmount', 'preparePrice'] as const
       for (const name of expected) {
         assert.strictEqual(typeof util[name], 'function', `util.${name} should be a function`)
       }

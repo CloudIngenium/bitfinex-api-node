@@ -1,7 +1,7 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
-import debugTable from '../../examples/util/debug_table.js'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const debugTable: (args: any) => string = (await import('../../examples/util/debug_table.js')).default
 
 describe('debugTable', () => {
   it('throws an error if row, header, and column counts don\'t match', () => {

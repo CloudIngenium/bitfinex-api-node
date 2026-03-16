@@ -1,12 +1,13 @@
-/* eslint-env mocha */
-
 import assert from 'node:assert'
 import _isUndefined from 'lodash/isUndefined.js'
 import _isObject from 'lodash/isObject.js'
 import _isString from 'lodash/isString.js'
 import _isEmpty from 'lodash/isEmpty.js'
 import { SocksProxyAgent } from 'socks-proxy-agent'
-import argsFromEnv from '../../examples/util/args_from_env.js'
+import _argsFromEnv from '../../examples/util/args_from_env.js'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const argsFromEnv = _argsFromEnv as (urlEnvVar?: string) => Record<string, any>
 
 describe('argsFromEnv', () => {
   it('pulls api credentials from the environment only if available', () => {

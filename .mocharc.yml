@@ -1,8 +1,10 @@
 recursive: true
 exit: true
-spec: 'test/**/*.js'
+spec: 'test/**/*.{js,ts}'
+require:
+  - tsx/esm
 ignore:
   - 'test/examples/**'
-  - 'test/lib/rest2-integration.js'
-  - 'test/lib/transports/ws2-integration.js'
-  - 'test/lib/ws2-subscriptions-integration.js'
+  - 'test/lib/rest2-integration.*'
+  - 'test/lib/transports/ws2-integration.*'
+  - 'test/lib/ws2-subscriptions-integration.*'
