@@ -168,7 +168,7 @@ class WSv2 extends EventEmitter {
     super()
 
     this.setMaxListeners(1000)
-    this._affCode = opts.affCode
+    this._affCode = opts.affCode ?? undefined
     this._agent = opts.agent
     this._url = opts.url || WSv2.url
     this._transform = opts.transform === true
@@ -751,7 +751,7 @@ class WSv2 extends EventEmitter {
     }
 
     if (this._transform) {
-      data = new OrderBook((Array.isArray(data[0]) ? data : [data]), raw)
+      data = new OrderBook((Array.isArray(data![0]) ? data : [data]), raw) as unknown as typeof data
     }
 
     const internalMessage: ExtendedMessage = [chanData.chanId, 'orderbook', data]
@@ -806,7 +806,7 @@ class WSv2 extends EventEmitter {
     if (!ob) return null
 
     const localCS = ob instanceof OrderBook
-      ? ob.checksum()
+      ? ob.checksum!()
       : OrderBook.checksumArr(ob, prec === 'R0')
 
     return localCS !== cs
@@ -900,7 +900,7 @@ class WSv2 extends EventEmitter {
     }
 
     if (this._transform) {
-      data = Candle.unserialize(data)
+      data = Candle.unserialize(data) as typeof data
     }
 
     const internalMessage: ExtendedMessage = [chanData.chanId, 'candle', data]
@@ -1414,11 +1414,12 @@ class WSv2 extends EventEmitter {
     }
 
     const order = params?.order ?? params
-    const packet = Array.isArray(order)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const packet: any = Array.isArray(order)
       ? order
       : order instanceof Order
-        ? order.toNewOrderPacket()
-        : new Order(order).toNewOrderPacket()
+        ? order.toNewOrderPacket!()
+        : new Order(order).toNewOrderPacket!()
 
     if (this._affCode) {
       if (!packet.meta) {
