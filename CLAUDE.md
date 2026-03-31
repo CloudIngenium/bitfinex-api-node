@@ -64,7 +64,7 @@ examples/               # REST and WebSocket usage examples
 
 ## Key Dependencies
 
-- `@jcbit/bfx-api-node-rest` — REST API client (CloudIngenium fork)
+- `@cloudingenium/bfx-api-node-rest` — REST API client (CloudIngenium fork)
 - `bfx-api-node-models` — Bitfinex data model classes
 - `bfx-api-node-util` — Shared utilities
 - `bfx-api-node-ws1` — Legacy WebSocket v1 transport
