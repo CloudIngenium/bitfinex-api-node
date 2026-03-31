@@ -27,9 +27,7 @@
     "coverage:check": "c8 check-coverage --lines 90 --functions 90 --branches 85",
     "prepare": "husky || true",
     "start": "node examples/rest2/ticker.js",
-    "publish:github": "npm publish --registry https://npm.pkg.github.com",
-    "publish:npm": "npm publish --registry https://registry.npmjs.org --access public",
-    "publish:both": "npm run publish:github && npm run publish:npm"
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -85,6 +83,9 @@
     "lossless-json": "^4.1.1",
     "promise-throttle": "^1.1.2",
     "ws": "^8.18.3"
+  },
+  "publishConfig": {
+    "@jcbit:registry": "https://npm.pkg.github.com"
   },
   "files": [
     "dist/",

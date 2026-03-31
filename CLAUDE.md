@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-CloudIngenium modernized fork of the official Bitfinex API client for Node.js. Published as `@jcbit/bitfinex-api-node` to GitHub Packages and npm. Provides both REST and WebSocket interfaces. Used by BfxLendingBot (via its Node.js dashboard backend) and other CloudIngenium services.
+CloudIngenium modernized fork of the official Bitfinex API client for Node.js. Published as `@jcbit/bitfinex-api-node` exclusively to GitHub Packages. Provides both REST and WebSocket interfaces. Used by BfxPingPongBot (via `file:` protocol) and BfxLendingBot (via dashboard backend).
 
 ## Stack
 
@@ -28,10 +28,15 @@ npm run lint:fix      # ESLint auto-fix
 
 ## Publishing
 
+Published exclusively to GitHub Packages (`@jcbit` scope). Automated via CI on tag push:
+
 ```bash
-npm run publish:github  # Publish to GitHub Packages
-npm run publish:npm     # Publish to npm (public)
-npm run publish:both    # Publish to both registries
+git tag v9.1.0 && git push origin v9.1.0   # Triggers publish.yml
+```
+
+Manual publish (if needed):
+```bash
+npm publish   # Uses publishConfig → GitHub Packages
 ```
 
 ## Structure
