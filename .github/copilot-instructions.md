@@ -1,5 +1,8 @@
 # Copilot Instructions - Bitfinex API Node
 
+> **Primary reference:** Read the repo's `CLAUDE.md` first — it is the single source of truth. This file provides supplementary Copilot-specific context.
+
+
 ## Architecture Overview
 
 This is a **modernized fork** of the official Bitfinex API Node.js library providing REST and WebSocket APIs for the Bitfinex exchange. The library uses a **facade pattern** with the main `BFX` class providing unified access to:
