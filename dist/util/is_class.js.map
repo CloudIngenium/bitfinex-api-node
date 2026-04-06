@@ -1,0 +1,1 @@
+{"version":3,"file":"is_class.js","sourceRoot":"","sources":["../../src/util/is_class.ts"],"names":[],"mappings":"AAAA,MAAM,OAAO,GAAG,CAAC,CAAU,EAAW,EAAE;IACtC,OAAO,CACL,OAAO,CAAC,KAAK,UAAU;QACvB,UAAU,CAAC,IAAI,CAAC,QAAQ,CAAC,SAAS,CAAC,QAAQ,CAAC,IAAI,CAAC,CAAC,CAAC,CAAC,CACrD,CAAA;AACH,CAAC,CAAA;AAED,eAAe,OAAO,CAAA"}

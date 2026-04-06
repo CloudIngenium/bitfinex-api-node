@@ -1,17 +1,24 @@
 node_modules
 .idea
+.vscode
 /test/test_api_keys.json
 /build
 npm-debug.log
 source/images
 .DS_Store
+Thumbs.db
 todo
 package-lock.json
 .env
-dist/
+.env.local
+.env.*.local
+# dist/ is committed — git-based consumers (file: protocol)
 .nyc_output
 coverage/
 .vim
+*.swp
+*.swo
 tags
 .undodir
 Session.vim
+*.tsbuildinfo

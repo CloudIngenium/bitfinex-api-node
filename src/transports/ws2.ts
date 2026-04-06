@@ -247,8 +247,7 @@ class WSv2 extends EventEmitter {
   }
 
   hasSubscriptionRef(channel: string, identifier: string): boolean {
-    const key = `${channel}:${identifier}`
-    return !!Object.keys(this._subscriptionRefs).find(ref => ref === key)
+    return `${channel}:${identifier}` in this._subscriptionRefs
   }
 
   getDataChannelId(type: string, filter: Record<string, any>): string | undefined {
@@ -257,11 +256,11 @@ class WSv2 extends EventEmitter {
       .keys(this._channelMap)
       .find(cid => {
         const c = this._channelMap[cid]
-        const fv: Record<string, any> = {}
+        if (c.channel !== type) return false
         for (const k of filterKeys) {
-          fv[k] = c[k]
+          if (c[k] !== filter[k]) return false
         }
-        return c.channel === type && JSON.stringify(fv) === JSON.stringify(filter)
+        return true
       })
   }
 
@@ -601,34 +600,20 @@ class WSv2 extends EventEmitter {
 
     if (!arrN[4] || !Array.isArray(arrN[4])) return
 
+    let key: string | null = null
+
     if (arrN[1] === 'on-req') {
       if (arrN[4].length < 3) return
-      const [,, cid] = arrN[4]
-      const k = `order-new-${cid}`
-
-      if (status === 'SUCCESS') {
-        this._eventCallbacks.trigger(k, null, arrN[4])
-      } else {
-        this._eventCallbacks.trigger(k, new Error(`${status}: ${msg}`), arrN[4])
-      }
+      key = `order-new-${arrN[4][2]}`
     } else if (arrN[1] === 'oc-req') {
-      const [id] = arrN[4]
-      const k = `order-cancel-${id}`
-
-      if (status === 'SUCCESS') {
-        this._eventCallbacks.trigger(k, null, arrN[4])
-      } else {
-        this._eventCallbacks.trigger(k, new Error(`${status}: ${msg}`), arrN[4])
-      }
+      key = `order-cancel-${arrN[4][0]}`
     } else if (arrN[1] === 'ou-req') {
-      const [id] = arrN[4]
-      const k = `order-update-${id}`
+      key = `order-update-${arrN[4][0]}`
+    }
 
-      if (status === 'SUCCESS') {
-        this._eventCallbacks.trigger(k, null, arrN[4])
-      } else {
-        this._eventCallbacks.trigger(k, new Error(`${status}: ${msg}`), arrN[4])
-      }
+    if (key) {
+      const err = status === 'SUCCESS' ? null : new Error(`${status}: ${msg}`)
+      this._eventCallbacks.trigger(key, err, arrN[4])
     }
   }
 
@@ -825,11 +810,14 @@ class WSv2 extends EventEmitter {
   }
 
   private _handleTradeMessage(msg: any[], chanData: ChannelData): void {
-    const eventName = msg[1][0] === 'f'
-      ? msg[1]
-      : msg[1] === 'te'
-        ? 'trade-entry'
-        : 'trades'
+    let eventName: string
+    if (msg[1][0] === 'f') {
+      eventName = msg[1]
+    } else if (msg[1] === 'te') {
+      eventName = 'trade-entry'
+    } else {
+      eventName = 'trades'
+    }
 
     let payload = getMessagePayload(msg)
 
@@ -971,10 +959,10 @@ class WSv2 extends EventEmitter {
   }
 
   private _propagateMessageToListeners(msg: any[], chan: ChannelData | any, transform: boolean = this._transform): void {
-    const listenerGroups = Object.values({ ...this._listeners })
+    const keys = Object.keys(this._listeners)
 
-    for (let i = 0; i < listenerGroups.length; i++) {
-      WSv2._notifyListenerGroup(listenerGroups[i], msg, transform, this, chan)
+    for (let i = 0; i < keys.length; i++) {
+      WSv2._notifyListenerGroup(this._listeners[keys[i]], msg, transform, this, chan)
     }
   }
 
