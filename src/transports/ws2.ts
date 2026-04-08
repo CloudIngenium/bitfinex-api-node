@@ -3,30 +3,15 @@ import createDebug from 'debug'
 import WebSocket from 'ws'
 import _bfxUtil from 'bfx-api-node-util'
 import * as LosslessJSON from 'lossless-json'
-import _bfxModels from 'bfx-api-node-models'
+import {
+  BalanceInfo, FundingCredit, FundingInfo, FundingLoan, FundingOffer,
+  FundingTrade, MarginInfo, Notification, Order, Position, Trade,
+  PublicTrade, Wallet, OrderBook, Candle, TradingTicker, FundingTicker
+} from '@cloudingenium/bfx-api-node-models'
 import getMessagePayload from '../util/ws2.js'
 import throttle from '../util/throttle.js'
 
 const { genAuthSig, nonce } = _bfxUtil
-const {
-  BalanceInfo,
-  FundingCredit,
-  FundingInfo,
-  FundingLoan,
-  FundingOffer,
-  FundingTrade,
-  MarginInfo,
-  Notification,
-  Order,
-  Position,
-  Trade,
-  PublicTrade,
-  Wallet,
-  OrderBook,
-  Candle,
-  TradingTicker,
-  FundingTicker
-} = _bfxModels
 
 const debug = createDebug('bfx:ws2')
 
