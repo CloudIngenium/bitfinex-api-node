@@ -97,6 +97,7 @@
     "bfx-api-node-ws1": {
       "debug": "^4.4.1",
       "ws": "^8.18.3"
-    }
+    },
+    "serialize-javascript": ">=7.0.5"
   }
 }
