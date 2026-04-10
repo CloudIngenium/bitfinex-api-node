@@ -1,4 +1,4 @@
-import Big from 'bignumber.js';
+import { Decimal } from 'decimal.js';
 const DEFAULT_SIG_FIGS = 5;
 const PRICE_SIG_FIGS = 5;
 const AMOUNT_DECIMALS = 8;
@@ -14,7 +14,7 @@ const setSigFig = (number = 0, maxSigs = DEFAULT_SIG_FIGS) => {
     }
     const value = n.toPrecision(maxSigs);
     return /e/.test(value)
-        ? new Big(value).toFixed()
+        ? new Decimal(value).toFixed()
         : value;
 };
 const setPrecision = (number = 0, decimals = 0) => {

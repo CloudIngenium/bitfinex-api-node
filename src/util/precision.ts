@@ -1,4 +1,4 @@
-import Big from 'bignumber.js'
+import { Decimal } from 'decimal.js'
 
 const DEFAULT_SIG_FIGS = 5
 const PRICE_SIG_FIGS = 5
@@ -17,7 +17,7 @@ const setSigFig = (number: number = 0, maxSigs: number = DEFAULT_SIG_FIGS): stri
   const value = n.toPrecision(maxSigs)
 
   return /e/.test(value)
-    ? new Big(value).toFixed()
+    ? new Decimal(value).toFixed()
     : value
 }
 
