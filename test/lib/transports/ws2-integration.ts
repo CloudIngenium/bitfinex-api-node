@@ -3,7 +3,7 @@
 
 import assert from 'node:assert'
 import WSv2 from '../../../dist/transports/ws2.js'
-import _bfxModels from 'bfx-api-node-models'
+import * as _bfxModels from '@cloudingenium/bfx-api-node-models'
 import _bfxMockSrv from 'bfx-api-mock-srv'
 const { Order } = _bfxModels
 const { MockWSv2Server } = _bfxMockSrv

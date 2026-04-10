@@ -2,7 +2,7 @@
 
 import assert from 'node:assert'
 import _bfxMockSrv from 'bfx-api-mock-srv'
-import _bfxModels from 'bfx-api-node-models'
+import * as _bfxModels from '@cloudingenium/bfx-api-node-models'
 
 const _isFunction = (v) => typeof v === 'function'
 const _isObject = (v) => v !== null && typeof v === 'object'

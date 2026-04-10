@@ -1,5 +1,5 @@
 import assert from 'node:assert'
-import _bfxModels from 'bfx-api-node-models'
+import * as _bfxModels from '@cloudingenium/bfx-api-node-models'
 import { isClass } from '../../../dist/util/index.js'
 
 const { TradingTicker } = _bfxModels
