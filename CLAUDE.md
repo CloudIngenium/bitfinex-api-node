@@ -66,12 +66,20 @@ examples/               # REST and WebSocket usage examples
 
 - `@cloudingenium/bfx-api-node-rest` — REST API client (CloudIngenium fork)
 - `bfx-api-node-models` — Bitfinex data model classes
-- `bfx-api-node-util` — Shared utilities
+- `bfx-api-node-util` — Shared utilities (nonce, auth sig)
 - `bfx-api-node-ws1` — Legacy WebSocket v1 transport
 - `ws` — WebSocket client
-- `bignumber.js` — Precision arithmetic
+- `decimal.js` — Precision arithmetic (scientific notation → fixed decimal)
 - `lossless-json` — JSON parsing without float precision loss
 - `promise-throttle` — Rate limiting for API calls
+
+### Debug logging
+Uses `node:util.debuglog` (NOT the `debug` npm package). Enable with:
+```bash
+NODE_DEBUG=bfx_ws2 node app.js          # WS2 transport
+NODE_DEBUG=bfx_ws2_manager node app.js   # WS2 manager
+NODE_DEBUG=bfx_ws2,bfx_ws2_manager       # Both
+```
 
 ## Conventions
 

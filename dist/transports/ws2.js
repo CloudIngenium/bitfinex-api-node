@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import createDebug from 'debug';
+import { debuglog } from 'node:util';
 import WebSocket from 'ws';
 import _bfxUtil from 'bfx-api-node-util';
 import * as LosslessJSON from 'lossless-json';
@@ -7,7 +7,7 @@ import { BalanceInfo, FundingCredit, FundingInfo, FundingLoan, FundingOffer, Fun
 import getMessagePayload from '../util/ws2.js';
 import throttle from '../util/throttle.js';
 const { genAuthSig, nonce } = _bfxUtil;
-const debug = createDebug('bfx:ws2');
+const debug = debuglog('bfx_ws2');
 const DATA_CHANNEL_TYPES = ['ticker', 'book', 'candles', 'trades'];
 const UCM_NOTIFICATION_TYPE = 'ucm-notify-ui';
 const MAX_CALC_OPS = 8;

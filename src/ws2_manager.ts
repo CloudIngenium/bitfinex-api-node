@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events'
-import createDebug from 'debug'
+import { debuglog } from 'node:util'
 import PromiseThrottleModule from 'promise-throttle'
 
 // Handle both ESM default export and CJS interop
@@ -7,7 +7,7 @@ const PromiseThrottle = (PromiseThrottleModule as any).default || PromiseThrottl
 import deepEqual from './util/deep_equal.js'
 import WSv2 from './transports/ws2.js'
 
-const debug = createDebug('bfx:ws2:manager')
+const debug = debuglog('bfx_ws2_manager')
 
 const DATA_CHANNEL_LIMIT = 30
 const reconnectThrottler = new PromiseThrottle({
