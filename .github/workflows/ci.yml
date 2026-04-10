@@ -34,3 +34,18 @@ jobs:
         run: npm run coverage && npm run coverage:check
       - name: Security audit
         run: npm audit --audit-level=high
+
+  build-and-test:
+    name: build-and-test
+    needs: [test]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Verify test matrix succeeded
+        run: |
+          if [[ "${{ needs.test.result }}" != "success" ]]; then
+            echo "test: ${{ needs.test.result }}"
+            exit 1
+          fi
+          echo "✓ All required checks passed"
