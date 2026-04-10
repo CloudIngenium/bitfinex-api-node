@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events'
+import { createHmac } from 'node:crypto'
 import { debuglog } from 'node:util'
 import WebSocket from 'ws'
-import _bfxUtil from 'bfx-api-node-util'
 import * as LosslessJSON from 'lossless-json'
 import {
   BalanceInfo, FundingCredit, FundingInfo, FundingLoan, FundingOffer,
@@ -11,7 +11,18 @@ import {
 import getMessagePayload from '../util/ws2.js'
 import throttle from '../util/throttle.js'
 
-const { genAuthSig, nonce } = _bfxUtil
+function genAuthSig(apiSecret: string | undefined, payload: string): { sig: string } {
+  const sig = createHmac('sha384', apiSecret ?? '').update(payload).digest('hex')
+  return { sig }
+}
+
+let _lastNonce = Date.now() * 1000
+
+function nonce(): string {
+  const now = Date.now() * 1000
+  _lastNonce = (_lastNonce < now) ? now : _lastNonce + 1
+  return _lastNonce.toString()
+}
 
 const debug = debuglog('bfx_ws2')
 

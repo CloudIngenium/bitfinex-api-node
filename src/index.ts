@@ -1,5 +1,4 @@
 import { RESTv1, RESTv2 } from '@jcbit/bfx-api-node-rest'
-import WSv1 from 'bfx-api-node-ws1'
 import WSv2 from './transports/ws2.js'
 import WS2Manager from './ws2_manager.js'
 
@@ -30,7 +29,6 @@ interface BFXOptions {
 class BFX {
   static RESTv1 = RESTv1
   static RESTv2 = RESTv2
-  static WSv1 = WSv1
   static WSv2 = WSv2
   static WS2Manager = WS2Manager
 
@@ -108,9 +106,10 @@ class BFX {
       const mergedOpts = { ...this._wsArgs, ...extraOpts }
       const payload = this._getTransportPayload(mergedOpts)
 
-      this._transportCache.ws[key] = version === 2
-        ? new WSv2(payload)
-        : new WSv1(payload)
+      if (version !== 2) {
+        throw new Error('WSv1 has been removed; use ws(2) instead')
+      }
+      this._transportCache.ws[key] = new WSv2(payload)
     }
 
     return this._transportCache.ws[key]
@@ -118,4 +117,4 @@ class BFX {
 }
 
 export default BFX
-export { RESTv1, RESTv2, WSv1, WSv2, WS2Manager }
+export { RESTv1, RESTv2, WSv2, WS2Manager }

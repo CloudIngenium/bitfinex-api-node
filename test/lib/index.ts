@@ -186,7 +186,6 @@ describe('BFX', () => {
     it('exports all transport classes', () => {
       assert.ok(BFX.RESTv1)
       assert.ok(BFX.RESTv2)
-      assert.ok(BFX.WSv1)
       assert.ok(BFX.WSv2)
       assert.ok(BFX.WS2Manager)
     })
@@ -244,11 +243,6 @@ describe('BFX', () => {
       assert.strictEqual(typeof RESTv2, 'function')
     })
 
-    it('exports WSv1 as a named export', async () => {
-      const { WSv1 } = await import('../../dist/index.js')
-      assert.strictEqual(typeof WSv1, 'function')
-    })
-
     it('exports WSv2 as a named export', async () => {
       const { WSv2 } = await import('../../dist/index.js')
       assert.strictEqual(typeof WSv2, 'function')
@@ -268,7 +262,6 @@ describe('BFX', () => {
       const mod = await import('../../dist/index.js')
       assert.strictEqual(mod.RESTv1, BFX.RESTv1)
       assert.strictEqual(mod.RESTv2, BFX.RESTv2)
-      assert.strictEqual(mod.WSv1, BFX.WSv1)
       assert.strictEqual(mod.WSv2, BFX.WSv2)
       assert.strictEqual(mod.WS2Manager, BFX.WS2Manager)
     })

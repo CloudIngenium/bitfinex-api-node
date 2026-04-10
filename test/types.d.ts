@@ -7,17 +7,6 @@ declare module 'bfx-api-node-models' {
   export default models
 }
 
-declare module 'bfx-api-node-ws1' {
-  class WSv1 {
-    constructor(...args: any[])
-    _apiKey: string
-    _apiSecret: string
-    _url: string
-    [key: string]: any
-  }
-  export default WSv1
-}
-
 declare module 'socks-proxy-agent' {
   import { Agent } from 'http'
   export class SocksProxyAgent extends Agent {

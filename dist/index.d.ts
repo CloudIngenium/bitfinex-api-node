@@ -1,5 +1,4 @@
 import { RESTv1, RESTv2 } from '@jcbit/bfx-api-node-rest';
-import WSv1 from 'bfx-api-node-ws1';
 import WSv2 from './transports/ws2.js';
 import WS2Manager from './ws2_manager.js';
 interface BFXOptions {
@@ -17,7 +16,6 @@ interface BFXOptions {
 declare class BFX {
     static RESTv1: typeof RESTv1;
     static RESTv2: typeof RESTv2;
-    static WSv1: typeof WSv1;
     static WSv2: typeof WSv2;
     static WS2Manager: typeof WS2Manager;
     private _apiKey;
@@ -34,5 +32,5 @@ declare class BFX {
     ws(version?: number, extraOpts?: Record<string, any>): any;
 }
 export default BFX;
-export { RESTv1, RESTv2, WSv1, WSv2, WS2Manager };
+export { RESTv1, RESTv2, WSv2, WS2Manager };
 //# sourceMappingURL=index.d.ts.map

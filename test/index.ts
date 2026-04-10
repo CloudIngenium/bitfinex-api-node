@@ -1,7 +1,6 @@
 import assert from 'node:assert'
 import BFX from '../dist/index.js'
 import { RESTv1, RESTv2 } from '@jcbit/bfx-api-node-rest'
-import WSv1 from 'bfx-api-node-ws1'
 import WSv2 from '../dist/transports/ws2.js'
 
 describe('BFX', () => {
@@ -86,12 +85,15 @@ describe('BFX', () => {
     it('returns correct WebSocket api by version', () => {
       const bfx = new BFX()
       const wsDefault = bfx.ws()
-      const ws1 = bfx.ws(1)
       const ws2 = bfx.ws(2)
 
       assert(wsDefault instanceof WSv2)
-      assert(ws1 instanceof WSv1)
       assert(ws2 instanceof WSv2)
+    })
+
+    it('throws when requesting WSv1', () => {
+      const bfx = new BFX()
+      assert.throws(() => bfx.ws(1), /WSv1 has been removed/)
     })
 
     it('passes API keys & transform flag to new transport', () => {
@@ -104,14 +106,10 @@ describe('BFX', () => {
         }
       })
 
-      const ws1 = bfx.ws(1)
       const ws2 = bfx.ws(2)
 
-      assert.strictEqual(ws1._apiKey, 'k')
       assert.strictEqual(ws2._authArgs.apiKey, 'k')
-      assert.strictEqual(ws1._apiSecret, 's')
       assert.strictEqual(ws2._authArgs.apiSecret, 's')
-      assert.strictEqual(ws1._url, 'wss://')
       assert.strictEqual(ws2._url, 'wss://')
       assert.strictEqual(ws2._transform, true)
     })
