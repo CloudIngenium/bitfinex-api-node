@@ -1,0 +1,1 @@
+../../../.claude/rules/trading-bot.md
