@@ -52,8 +52,9 @@ class WS2Manager extends EventEmitter {
     this._sockets.forEach(socket => socket.ws.updateAuthArgs(this._authArgs))
   }
 
-  getAuthArgs(): WS2Manager['_authArgs'] {
-    return this._authArgs
+  getAuthArgs(): Omit<WS2Manager['_authArgs'], 'apiSecret'> {
+    const { apiSecret: _, ...safe } = this._authArgs
+    return safe
   }
 
   async reconnect(): Promise<void[]> {

@@ -18,7 +18,7 @@ declare class WS2Manager extends EventEmitter {
         dms?: number;
     });
     setAuthArgs(args?: Partial<WS2Manager['_authArgs']>): void;
-    getAuthArgs(): WS2Manager['_authArgs'];
+    getAuthArgs(): Omit<WS2Manager['_authArgs'], 'apiSecret'>;
     reconnect(): Promise<void[]>;
     close(): Promise<void>;
     static getDataChannelCount(s: SocketState): number;

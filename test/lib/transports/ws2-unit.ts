@@ -570,7 +570,7 @@ describe('WSv2 unit', () => {
   })
 
   it('reconnect with new credentials', async () => {
-    wss = new MockWSv2Server({ authMiddleware: ({ apiKey, apiSecret }) => apiKey === API_KEY && apiSecret === API_SECRET })
+    wss = new MockWSv2Server({ authMiddleware: ({ apiKey }) => apiKey === API_KEY })
     ws = createTestWSv2Instance({ reconnectDelay: 10 })
 
     await ws.open()
@@ -2055,8 +2055,7 @@ describe('WSv2 unit', () => {
 
       assert(_isObject(initAuthArgs))
       assert.deepStrictEqual(initAuthArgs, {
-        apiKey: API_KEY,
-        apiSecret: API_SECRET
+        apiKey: API_KEY
       })
     })
 
@@ -3811,7 +3810,7 @@ describe('WSv2 unit', () => {
       ws = createTestWSv2Instance()
       const args = ws.getAuthArgs()
       assert.strictEqual(args.apiKey, API_KEY)
-      assert.strictEqual(args.apiSecret, API_SECRET)
+      assert.strictEqual(args.apiSecret, undefined, 'apiSecret must not be exposed via getAuthArgs()')
     })
   })
 

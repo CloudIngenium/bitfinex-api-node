@@ -161,7 +161,8 @@ class WSv2 extends EventEmitter {
         };
     }
     getAuthArgs() {
-        return this._authArgs;
+        const { apiSecret: _, ...safe } = this._authArgs;
+        return safe;
     }
     getDataChannelCount() {
         return Object
@@ -267,11 +268,11 @@ class WSv2 extends EventEmitter {
         const authNonce = nonce();
         const authPayload = `AUTH${authNonce}${authNonce}`;
         const { sig } = genAuthSig(this._authArgs.apiSecret, authPayload);
-        const authArgs = { ...this._authArgs };
+        const { apiKey: _key, apiSecret: _secret, ...extraAuthArgs } = this._authArgs;
         if (Number.isFinite(calc))
-            authArgs.calc = calc;
+            extraAuthArgs.calc = calc;
         if (Number.isFinite(dms))
-            authArgs.dms = dms;
+            extraAuthArgs.dms = dms;
         return new Promise((resolve) => {
             this.once('auth', () => {
                 debug('authenticated');
@@ -283,7 +284,7 @@ class WSv2 extends EventEmitter {
                 authSig: sig,
                 authPayload,
                 authNonce,
-                ...authArgs
+                ...extraAuthArgs
             });
         });
     }
@@ -608,12 +609,7 @@ class WSv2 extends EventEmitter {
         let rawLossless;
         try {
             rawLossless = LosslessJSON.parse(rawMsg, (_key, value) => {
-                if (value && value.isLosslessNumber) {
-                    return value.toString();
-                }
-                else {
-                    return value;
-                }
+                return (value && value.isLosslessNumber) ? value.toString() : value;
             });
         }
         catch (err) {
@@ -667,11 +663,10 @@ class WSv2 extends EventEmitter {
         else {
             eventName = 'trades';
         }
-        let payload = getMessagePayload(msg);
-        if (payload && !Array.isArray(payload[0])) {
-            payload = [payload];
+        let data = getMessagePayload(msg);
+        if (data && !Array.isArray(data[0])) {
+            data = [data];
         }
-        let data = payload;
         if (this._transform) {
             const M = eventName[0] === 'f' && msg[2].length === 8 ? FundingTrade : PublicTrade;
             const trades = M.unserialize(data);
@@ -777,9 +772,8 @@ class WSv2 extends EventEmitter {
         this._propagateMessageToListeners(msg, chanData);
     }
     _propagateMessageToListeners(msg, chan, transform = this._transform) {
-        const keys = Object.keys(this._listeners);
-        for (let i = 0; i < keys.length; i++) {
-            WSv2._notifyListenerGroup(this._listeners[keys[i]], msg, transform, this, chan);
+        for (const gid of Object.keys(this._listeners)) {
+            WSv2._notifyListenerGroup(this._listeners[gid], msg, transform, this, chan);
         }
     }
     static _notifyListenerGroup(lGroup, msg, transform, ws, _chanData) {
@@ -806,17 +800,14 @@ class WSv2 extends EventEmitter {
             return;
         listeners.forEach(({ cb, modelClass }) => {
             try {
-                const ModelClass = modelClass;
-                if (!ModelClass || !transform || data.length === 0) {
+                if (!modelClass || !transform || data.length === 0) {
                     cb(data, _chanData);
                 }
                 else if (Array.isArray(data[0])) {
-                    cb(data.map((entry) => {
-                        return new ModelClass(entry, ws);
-                    }), _chanData);
+                    cb(data.map((entry) => new modelClass(entry, ws)), _chanData);
                 }
                 else {
-                    cb(new ModelClass(data, ws), _chanData);
+                    cb(new modelClass(data, ws), _chanData);
                 }
             }
             catch (err) {
@@ -826,14 +817,12 @@ class WSv2 extends EventEmitter {
         });
     }
     static _payloadPassesFilter(payload, filter) {
-        const filterIndices = Object.keys(filter);
-        let filterValue;
-        for (let k = 0; k < filterIndices.length; k++) {
-            filterValue = filter[filterIndices[k]];
+        for (const k of Object.keys(filter)) {
+            const filterValue = filter[k];
             if (filterValue === undefined || filterValue === null || filterValue === '' || filterValue === '*') {
                 continue;
             }
-            if (payload[+filterIndices[k]] !== filterValue) {
+            if (payload[+k] !== filterValue) {
                 return false;
             }
         }
@@ -842,9 +831,9 @@ class WSv2 extends EventEmitter {
     static _notifyCatchAllListeners(lGroup, data) {
         if (!lGroup[''])
             return;
-        for (let j = 0; j < lGroup[''].length; j++) {
+        for (const listener of lGroup['']) {
             try {
-                lGroup[''][j].cb(data);
+                listener.cb(data);
             }
             catch (err) {
                 debug('error in catch-all listener callback: %s', err.message);
@@ -982,13 +971,10 @@ class WSv2 extends EventEmitter {
         return (id && this._channelMap[id]) || null;
     }
     _chanIdByIdentifier(channel, identifier) {
-        const channelIds = Object.keys(this._channelMap);
-        let chan;
-        for (let i = 0; i < channelIds.length; i++) {
-            chan = this._channelMap[channelIds[i]];
-            if (chan.channel === channel && (chan.symbol === identifier ||
-                chan.key === identifier)) {
-                return channelIds[i];
+        for (const chanId of Object.keys(this._channelMap)) {
+            const chan = this._channelMap[chanId];
+            if (chan.channel === channel && (chan.symbol === identifier || chan.key === identifier)) {
+                return chanId;
             }
         }
         return null;

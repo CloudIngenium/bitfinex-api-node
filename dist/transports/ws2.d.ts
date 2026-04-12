@@ -97,7 +97,7 @@ declare class WSv2 extends EventEmitter {
     getURL(): string;
     usesAgent(): boolean;
     updateAuthArgs(args?: Partial<WSv2['_authArgs']>): void;
-    getAuthArgs(): WSv2['_authArgs'];
+    getAuthArgs(): Omit<WSv2['_authArgs'], 'apiSecret'>;
     getDataChannelCount(): number;
     hasChannel(chanId: number | string): boolean;
     hasSubscriptionRef(channel: string, identifier: string): boolean;

@@ -227,8 +227,9 @@ class WSv2 extends EventEmitter {
     }
   }
 
-  getAuthArgs(): WSv2['_authArgs'] {
-    return this._authArgs
+  getAuthArgs(): Omit<WSv2['_authArgs'], 'apiSecret'> {
+    const { apiSecret: _, ...safe } = this._authArgs
+    return safe
   }
 
   getDataChannelCount(): number {
@@ -356,10 +357,10 @@ class WSv2 extends EventEmitter {
     const authNonce = nonce()
     const authPayload = `AUTH${authNonce}${authNonce}`
     const { sig } = genAuthSig(this._authArgs.apiSecret, authPayload)
-    const authArgs = { ...this._authArgs }
+    const { apiKey: _key, apiSecret: _secret, ...extraAuthArgs } = this._authArgs
 
-    if (Number.isFinite(calc)) (authArgs as any).calc = calc
-    if (Number.isFinite(dms)) (authArgs as any).dms = dms
+    if (Number.isFinite(calc)) (extraAuthArgs as any).calc = calc
+    if (Number.isFinite(dms)) (extraAuthArgs as any).dms = dms
 
     return new Promise<void>((resolve) => {
       this.once('auth', () => {
@@ -373,7 +374,7 @@ class WSv2 extends EventEmitter {
         authSig: sig,
         authPayload,
         authNonce,
-        ...authArgs
+        ...extraAuthArgs
       })
     })
   }
@@ -750,11 +751,7 @@ class WSv2 extends EventEmitter {
     let rawLossless: any
     try {
       rawLossless = LosslessJSON.parse(rawMsg, (_key: string, value: any) => {
-        if (value && value.isLosslessNumber) {
-          return value.toString()
-        } else {
-          return value
-        }
+        return (value && value.isLosslessNumber) ? value.toString() : value
       })
     } catch (err: any) {
       return new Error(`lossless JSON parse error for OB ${symbol}: ${err.message}`)
@@ -815,13 +812,11 @@ class WSv2 extends EventEmitter {
       eventName = 'trades'
     }
 
-    let payload = getMessagePayload(msg)
+    let data: any = getMessagePayload(msg)
 
-    if (payload && !Array.isArray(payload[0])) {
-      payload = [payload]
+    if (data && !Array.isArray(data[0])) {
+      data = [data]
     }
-
-    let data: any = payload
 
     if (this._transform) {
       const M = eventName[0] === 'f' && msg[2].length === 8 ? FundingTrade : PublicTrade
@@ -955,10 +950,8 @@ class WSv2 extends EventEmitter {
   }
 
   private _propagateMessageToListeners(msg: any[], chan: ChannelData | any, transform: boolean = this._transform): void {
-    const keys = Object.keys(this._listeners)
-
-    for (let i = 0; i < keys.length; i++) {
-      WSv2._notifyListenerGroup(this._listeners[keys[i]], msg, transform, this, chan)
+    for (const gid of Object.keys(this._listeners)) {
+      WSv2._notifyListenerGroup(this._listeners[gid], msg, transform, this, chan)
     }
   }
 
@@ -992,16 +985,12 @@ class WSv2 extends EventEmitter {
 
     listeners.forEach(({ cb, modelClass }) => {
       try {
-        const ModelClass = modelClass
-
-        if (!ModelClass || !transform || data.length === 0) {
+        if (!modelClass || !transform || data.length === 0) {
           cb(data, _chanData)
         } else if (Array.isArray(data[0])) {
-          cb(data.map((entry: any) => {
-            return new ModelClass(entry, ws)
-          }), _chanData)
+          cb(data.map((entry: any) => new modelClass(entry, ws)), _chanData)
         } else {
-          cb(new ModelClass(data, ws), _chanData)
+          cb(new modelClass(data, ws), _chanData)
         }
       } catch (err: any) {
         debug('error in listener callback: %s', err.message)
@@ -1011,17 +1000,14 @@ class WSv2 extends EventEmitter {
   }
 
   static _payloadPassesFilter(payload: any, filter: Record<string, any>): boolean {
-    const filterIndices = Object.keys(filter)
-    let filterValue: any
-
-    for (let k = 0; k < filterIndices.length; k++) {
-      filterValue = filter[filterIndices[k]]
+    for (const k of Object.keys(filter)) {
+      const filterValue = filter[k]
 
       if (filterValue === undefined || filterValue === null || filterValue === '' || filterValue === '*') {
         continue
       }
 
-      if (payload[+filterIndices[k]] !== filterValue) {
+      if (payload[+k] !== filterValue) {
         return false
       }
     }
@@ -1032,9 +1018,9 @@ class WSv2 extends EventEmitter {
   static _notifyCatchAllListeners(lGroup: ListenerGroup, data: any): void {
     if (!lGroup['']) return
 
-    for (let j = 0; j < lGroup[''].length; j++) {
+    for (const listener of lGroup['']) {
       try {
-        lGroup[''][j].cb(data)
+        listener.cb(data)
       } catch (err: any) {
         debug('error in catch-all listener callback: %s', err.message)
       }
@@ -1195,17 +1181,11 @@ class WSv2 extends EventEmitter {
   }
 
   _chanIdByIdentifier(channel: string, identifier: string): string | null {
-    const channelIds = Object.keys(this._channelMap)
-    let chan: ChannelData
+    for (const chanId of Object.keys(this._channelMap)) {
+      const chan = this._channelMap[chanId]
 
-    for (let i = 0; i < channelIds.length; i++) {
-      chan = this._channelMap[channelIds[i]]
-
-      if (chan.channel === channel && (
-        chan.symbol === identifier ||
-        chan.key === identifier
-      )) {
-        return channelIds[i]
+      if (chan.channel === channel && (chan.symbol === identifier || chan.key === identifier)) {
+        return chanId
       }
     }
 
